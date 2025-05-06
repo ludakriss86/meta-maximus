@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compact Variable Buttons Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f6f6f7;
+      color: #212b36;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      padding: 20px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      min-height: 80px;
+      font-family: inherit;
+      resize: vertical;
+    }
+    .character-count {
+      margin-top: 5px;
+      font-size: 14px;
+      color: #637381;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    /* Compact Variable buttons styling */
+    .variable-buttons-compact {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .var-button {
+      padding: 3px 6px;
+      font-size: 12px;
+      background-color: #f4f6f8;
+      color: #5c6ac4;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .var-button:hover {
+      background-color: #5c6ac4;
+      color: white;
+    }
+    .var-button.special {
+      background-color: #f1f8f5;
+      color: #108043;
+    }
+    .var-button.special:hover {
+      background-color: #108043;
+      color: white;
+    }
+    .var-button.format {
+      background-color: #f9f4fa;
+      color: #9c6ade;
+    }
+    .var-button.format:hover {
+      background-color: #9c6ade;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Compact Variable Buttons Demo</h1>
+    <p>This page demonstrates a more compact version of the variable buttons.</p>
+    
+    <div class="card">
+      <h2>Meta Title Template</h2>
+      <div class="form-group">
+        <label for="metaTitle">Title Template</label>
+        <textarea id="metaTitle">{{collectionTitle}} - {{season}} {{year}} Collection | {{storeName}}</textarea>
+        <div class="character-count">
+          <span id="metaTitleCount">0</span> characters
+        </div>
+        
+        <!-- Compact Variable Buttons -->
+        <div class="variable-buttons-compact">
+          <!-- Common variables -->
+          <button type="button" class="var-button" onclick="insertVariable('metaTitle', '{{year}}')">YEAR</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaTitle', '{{month}}')">MONTH</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaTitle', '{{season}}')">SEASON</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaTitle', '{{date}}')">DATE</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaTitle', '{{productTitle}}')">PRODUCT</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaTitle', '{{collectionTitle}}')">COLLECTION</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaTitle', '{{storeName}}')">STORE</button>
+          
+          <!-- Conditional logic -->
+          <button type="button" class="var-button special" onclick="insertVariable('metaTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
+          <button type="button" class="var-button special" onclick="insertVariable('metaTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
+          
+          <!-- Format modifiers -->
+          <button type="button" class="var-button format" onclick="insertModifier('metaTitle', ':uppercase')">UPPER</button>
+          <button type="button" class="var-button format" onclick="insertModifier('metaTitle', ':lowercase')">LOWER</button>
+        </div>
+      </div>
+      
+      <h2>Meta Description Template</h2>
+      <div class="form-group">
+        <label for="metaDescription">Description Template</label>
+        <textarea id="metaDescription">Explore our {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on selected items!{{else}}New arrivals now available.{{endif}}</textarea>
+        <div class="character-count">
+          <span id="metaDescriptionCount">0</span> characters
+        </div>
+        
+        <!-- Compact Variable Buttons -->
+        <div class="variable-buttons-compact">
+          <!-- Common variables -->
+          <button type="button" class="var-button" onclick="insertVariable('metaDescription', '{{year}}')">YEAR</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaDescription', '{{month}}')">MONTH</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaDescription', '{{season}}')">SEASON</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaDescription', '{{date}}')">DATE</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaDescription', '{{productTitle}}')">PRODUCT</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaDescription', '{{collectionTitle}}')">COLLECTION</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaDescription', '{{storeName}}')">STORE</button>
+          
+          <!-- Conditional logic -->
+          <button type="button" class="var-button special" onclick="insertVariable('metaDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
+          <button type="button" class="var-button special" onclick="insertVariable('metaDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
+          
+          <!-- Format modifiers -->
+          <button type="button" class="var-button format" onclick="insertModifier('metaDescription', ':uppercase')">UPPER</button>
+          <button type="button" class="var-button format" onclick="insertModifier('metaDescription', ':lowercase')">LOWER</button>
+          
+          <!-- Extra variables for description -->
+          <button type="button" class="var-button" onclick="insertVariable('metaDescription', '{{maxDiscountPercentage}}')">MAX %</button>
+          <button type="button" class="var-button" onclick="insertVariable('metaDescription', '{{discountRange}}')">RANGE</button>
+        </div>
+      </div>
+      
+      <div style="margin-top: 20px;">
+        <button id="saveBtn" style="padding: 8px 12px; background: #5c6ac4; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Templates</button>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>Preview</h2>
+      <div id="preview">
+        <div>
+          <strong>Title:</strong> <span id="titlePreview"></span>
+        </div>
+        <div style="margin-top: 10px;">
+          <strong>Description:</strong> <span id="descriptionPreview"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Function to insert variable at cursor position
+    function insertVariable(textareaId, variable) {
+      const textarea = document.getElementById(textareaId);
+      if (!textarea) return;
+      
+      // Get cursor position
+      const startPos = textarea.selectionStart;
+      const endPos = textarea.selectionEnd;
+      
+      // Insert variable at cursor position
+      textarea.value = textarea.value.substring(0, startPos) + 
+                       variable + 
+                       textarea.value.substring(endPos);
+      
+      // Move cursor after the inserted variable
+      textarea.selectionStart = textarea.selectionEnd = startPos + variable.length;
+      
+      // Focus back on textarea
+      textarea.focus();
+      
+      // Trigger input event to update character count
+      const event = new Event('input', { bubbles: true });
+      textarea.dispatchEvent(event);
+    }
+    
+    // Function to insert modifier after a variable
+    function insertModifier(textareaId, modifier) {
+      const textarea = document.getElementById(textareaId);
+      if (!textarea) return;
+      
+      // Get cursor position
+      const startPos = textarea.selectionStart;
+      const endPos = textarea.selectionEnd;
+      const beforeCursor = textarea.value.substring(0, startPos);
+      
+      // Check if there's a variable pattern before cursor
+      const variablePattern = /\{\{([^}]+)\}\}/;
+      const match = beforeCursor.match(variablePattern);
+      
+      if (match && match.index !== -1) {
+        // Find the position right after the last variable closing }}
+        const variableEndPos = beforeCursor.lastIndexOf('}}');
+        if (variableEndPos !== -1 && variableEndPos === startPos - 2) {
+          // Insert modifier right after the variable
+          textarea.value = textarea.value.substring(0, variableEndPos) + 
+                           modifier +
+                           textarea.value.substring(variableEndPos, textarea.value.length);
+          textarea.selectionStart = textarea.selectionEnd = variableEndPos + modifier.length + 2;
+        } else {
+          // Just insert at cursor if we're not right after a variable
+          textarea.value = beforeCursor + modifier + textarea.value.substring(endPos);
+          textarea.selectionStart = textarea.selectionEnd = startPos + modifier.length;
+        }
+      } else {
+        // Just insert at cursor if no variable pattern found
+        textarea.value = beforeCursor + modifier + textarea.value.substring(endPos);
+        textarea.selectionStart = textarea.selectionEnd = startPos + modifier.length;
+      }
+      
+      // Focus back on textarea
+      textarea.focus();
+      
+      // Trigger input event to update character count
+      const event = new Event('input', { bubbles: true });
+      textarea.dispatchEvent(event);
+    }
+    
+    // Function to update character count
+    function updateCharCount(textareaId, countId) {
+      const textarea = document.getElementById(textareaId);
+      const countElement = document.getElementById(countId);
+      
+      if (!textarea || !countElement) return;
+      
+      const length = textarea.value.length;
+      countElement.textContent = length;
+    }
+    
+    // Function to update preview
+    function updatePreview() {
+      const titleTemplate = document.getElementById('metaTitle').value;
+      const descTemplate = document.getElementById('metaDescription').value;
+      
+      // Simple mock variable replacement - in a real app this would call your API
+      const mockVariables = {
+        year: '2025',
+        month: 'May',
+        season: 'Summer',
+        date: 'May 6, 2025',
+        productTitle: 'Sample Product',
+        collectionTitle: 'Summer Collection',
+        storeName: 'Your Store',
+        hasDiscount: true,
+        maxDiscountPercentage: '40%',
+        discountRange: '20-40%'
+      };
+      
+      // Very simple parser - just for demo
+      let titlePreview = titleTemplate;
+      let descPreview = descTemplate;
+      
+      // Replace basic variables
+      for (const [key, value] of Object.entries(mockVariables)) {
+        if (typeof value !== 'boolean') {
+          const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+          titlePreview = titlePreview.replace(regex, value);
+          descPreview = descPreview.replace(regex, value);
+        }
+      }
+      
+      // Handle conditionals - very simplified for demo
+      const ifDiscountRegex = /\{\{if hasDiscount\}\}(.*?)\{\{else\}\}(.*?)\{\{endif\}\}/g;
+      const ifDiscountSimpleRegex = /\{\{if hasDiscount\}\}(.*?)\{\{endif\}\}/g;
+      
+      if (mockVariables.hasDiscount) {
+        titlePreview = titlePreview.replace(ifDiscountRegex, '$1');
+        descPreview = descPreview.replace(ifDiscountRegex, '$1');
+        
+        titlePreview = titlePreview.replace(ifDiscountSimpleRegex, '$1');
+        descPreview = descPreview.replace(ifDiscountSimpleRegex, '$1');
+      } else {
+        titlePreview = titlePreview.replace(ifDiscountRegex, '$2');
+        descPreview = descPreview.replace(ifDiscountRegex, '$2');
+        
+        titlePreview = titlePreview.replace(ifDiscountSimpleRegex, '');
+        descPreview = descPreview.replace(ifDiscountSimpleRegex, '');
+      }
+      
+      // Update preview
+      document.getElementById('titlePreview').textContent = titlePreview;
+      document.getElementById('descriptionPreview').textContent = descPreview;
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      const metaTitleTextarea = document.getElementById('metaTitle');
+      const metaDescriptionTextarea = document.getElementById('metaDescription');
+      
+      // Set up event listeners for character count
+      if (metaTitleTextarea) {
+        metaTitleTextarea.addEventListener('input', function() {
+          updateCharCount('metaTitle', 'metaTitleCount');
+          updatePreview();
+        });
+      }
+      
+      if (metaDescriptionTextarea) {
+        metaDescriptionTextarea.addEventListener('input', function() {
+          updateCharCount('metaDescription', 'metaDescriptionCount');
+          updatePreview();
+        });
+      }
+      
+      // Set up save button
+      const saveBtn = document.getElementById('saveBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+          alert('Templates saved! (This is just a demo)');
+        });
+      }
+      
+      // Initialize character counts and preview
+      updateCharCount('metaTitle', 'metaTitleCount');
+      updateCharCount('metaDescription', 'metaDescriptionCount');
+      updatePreview();
+    });
+  </script>
+</body>
+</html>
