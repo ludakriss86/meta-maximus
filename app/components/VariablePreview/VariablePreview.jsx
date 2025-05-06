@@ -62,7 +62,8 @@ export default function VariablePreview({
       });
       
       if (!response.ok) {
-        throw new Error('Failed to preview template');
+        const errorText = await response.text();
+        throw new Error(`Failed to preview template: ${errorText}`);
       }
       
       const data = await response.json();
@@ -75,6 +76,7 @@ export default function VariablePreview({
         data: previewData
       });
     } catch (error) {
+      console.error('Preview error:', error);
       setError(error.message);
     } finally {
       setIsLoading(false);
@@ -197,6 +199,35 @@ export default function VariablePreview({
                 autoComplete="off"
                 helpText="Enter your template with variables in {{variable}} format"
               />
+              
+              <Box paddingBlockStart="200">
+                <Text variant="bodySm" color="subdued">Common Variables:</Text>
+                <InlineStack gap="200" wrap>
+                  <Button size="slim" onClick={() => setTemplate(prev => prev + "{{year}}")}>YEAR</Button>
+                  <Button size="slim" onClick={() => setTemplate(prev => prev + "{{month}}")}>MONTH</Button>
+                  <Button size="slim" onClick={() => setTemplate(prev => prev + "{{season}}")}>SEASON</Button>
+                  <Button size="slim" onClick={() => setTemplate(prev => prev + "{{date}}")}>DATE</Button>
+                  <Button size="slim" onClick={() => setTemplate(prev => prev + "{{productTitle}}")}>PRODUCT</Button>
+                  <Button size="slim" onClick={() => setTemplate(prev => prev + "{{collectionTitle}}")}>COLLECTION</Button>
+                  <Button size="slim" onClick={() => setTemplate(prev => prev + "{{storeName}}")}>STORE</Button>
+                </InlineStack>
+                
+                <Box paddingBlockStart="300">
+                  <Text variant="bodySm" color="subdued">Conditional Logic:</Text>
+                  <InlineStack gap="200" wrap>
+                    <Button size="slim" onClick={() => setTemplate(prev => prev + "{{if hasDiscount}}...{{endif}}")}>IF DISCOUNT</Button>
+                    <Button size="slim" onClick={() => setTemplate(prev => prev + "{{if hasDiscount}}...{{else}}...{{endif}}")}>IF/ELSE</Button>
+                  </InlineStack>
+                </Box>
+                
+                <Box paddingBlockStart="300">
+                  <Text variant="bodySm" color="subdued">Format Modifiers:</Text>
+                  <InlineStack gap="200" wrap>
+                    <Button size="slim" onClick={() => setTemplate(prev => prev + ":uppercase")}>UPPERCASE</Button>
+                    <Button size="slim" onClick={() => setTemplate(prev => prev + ":lowercase")}>LOWERCASE</Button>
+                  </InlineStack>
+                </Box>
+              </Box>
               
               <Select
                 label="Data Source"
