@@ -10,6 +10,15 @@ const path = require('path');
 const config = require('../src/config');
 const scheduler = require('../src/services/scheduler');
 
+// React renderer for server-side rendering
+const { 
+  renderHomePage, 
+  renderCollectionsPage, 
+  renderProductsPage, 
+  renderMetafieldsPage, 
+  renderTemplatesPage 
+} = require('./renderReact');
+
 const app = express();
 const port = config.PORT; // Consistent port usage from config
 
@@ -336,8 +345,61 @@ const dashboardHTML = `
       </div>
     </div>
   </div>
-</body>
-</html>
+
+<script>
+  // Function to insert text at cursor position in the active element
+  function insertText(text) {
+    const activeElement = document.activeElement;
+    if (activeElement.tagName.toLowerCase() === 'textarea' || 
+        activeElement.tagName.toLowerCase() === 'input') {
+      const startPos = activeElement.selectionStart;
+      const endPos = activeElement.selectionEnd;
+      activeElement.value = activeElement.value.substring(0, startPos) + 
+                           text + 
+                           activeElement.value.substring(endPos, activeElement.value.length);
+      activeElement.selectionStart = activeElement.selectionEnd = startPos + text.length;
+      activeElement.focus();
+    }
+  }
+  
+  // Function to insert a modifier at cursor position or after a variable
+  function insertModifier(modifier) {
+    const activeElement = document.activeElement;
+    if (activeElement.tagName.toLowerCase() === 'textarea' || 
+        activeElement.tagName.toLowerCase() === 'input') {
+      const startPos = activeElement.selectionStart;
+      const endPos = activeElement.selectionEnd;
+      const beforeCursor = activeElement.value.substring(0, startPos);
+      
+      // Check if there's a variable pattern before cursor
+      const variablePattern = /\{\{([^}]+)\}\}/;
+      const match = beforeCursor.match(variablePattern);
+      
+      if (match && match.index !== -1) {
+        // Find the position right after the last variable closing }}
+        const variableEndPos = beforeCursor.lastIndexOf('}}');
+        if (variableEndPos !== -1 && variableEndPos === startPos - 2) {
+          // Insert modifier right after the variable
+          activeElement.value = activeElement.value.substring(0, variableEndPos) + 
+                               modifier +
+                               activeElement.value.substring(variableEndPos, activeElement.value.length);
+          activeElement.selectionStart = activeElement.selectionEnd = variableEndPos + modifier.length + 2;
+        } else {
+          // Just insert at cursor if we're not right after a variable
+          activeElement.value = beforeCursor + modifier + activeElement.value.substring(endPos);
+          activeElement.selectionStart = activeElement.selectionEnd = startPos + modifier.length;
+        }
+      } else {
+        // Just insert at cursor if no variable pattern found
+        activeElement.value = beforeCursor + modifier + activeElement.value.substring(endPos);
+        activeElement.selectionStart = activeElement.selectionEnd = startPos + modifier.length;
+      }
+      
+      activeElement.focus();
+    }
+  }
+</script>
+</body></html>
 `;
 
 // Create a simple templates page HTML
@@ -710,8 +772,61 @@ const templatesHTML = `
       </div>
     </div>
   </div>
-</body>
-</html>
+
+<script>
+  // Function to insert text at cursor position in the active element
+  function insertText(text) {
+    const activeElement = document.activeElement;
+    if (activeElement.tagName.toLowerCase() === 'textarea' || 
+        activeElement.tagName.toLowerCase() === 'input') {
+      const startPos = activeElement.selectionStart;
+      const endPos = activeElement.selectionEnd;
+      activeElement.value = activeElement.value.substring(0, startPos) + 
+                           text + 
+                           activeElement.value.substring(endPos, activeElement.value.length);
+      activeElement.selectionStart = activeElement.selectionEnd = startPos + text.length;
+      activeElement.focus();
+    }
+  }
+  
+  // Function to insert a modifier at cursor position or after a variable
+  function insertModifier(modifier) {
+    const activeElement = document.activeElement;
+    if (activeElement.tagName.toLowerCase() === 'textarea' || 
+        activeElement.tagName.toLowerCase() === 'input') {
+      const startPos = activeElement.selectionStart;
+      const endPos = activeElement.selectionEnd;
+      const beforeCursor = activeElement.value.substring(0, startPos);
+      
+      // Check if there's a variable pattern before cursor
+      const variablePattern = /\{\{([^}]+)\}\}/;
+      const match = beforeCursor.match(variablePattern);
+      
+      if (match && match.index !== -1) {
+        // Find the position right after the last variable closing }}
+        const variableEndPos = beforeCursor.lastIndexOf('}}');
+        if (variableEndPos !== -1 && variableEndPos === startPos - 2) {
+          // Insert modifier right after the variable
+          activeElement.value = activeElement.value.substring(0, variableEndPos) + 
+                               modifier +
+                               activeElement.value.substring(variableEndPos, activeElement.value.length);
+          activeElement.selectionStart = activeElement.selectionEnd = variableEndPos + modifier.length + 2;
+        } else {
+          // Just insert at cursor if we're not right after a variable
+          activeElement.value = beforeCursor + modifier + activeElement.value.substring(endPos);
+          activeElement.selectionStart = activeElement.selectionEnd = startPos + modifier.length;
+        }
+      } else {
+        // Just insert at cursor if no variable pattern found
+        activeElement.value = beforeCursor + modifier + activeElement.value.substring(endPos);
+        activeElement.selectionStart = activeElement.selectionEnd = startPos + modifier.length;
+      }
+      
+      activeElement.focus();
+    }
+  }
+</script>
+</body></html>
 `;
 
 // Create a simple collections page HTML
@@ -1505,8 +1620,61 @@ const collectionsHTML = `
       }
     }
   </script>
-</body>
-</html>
+
+<script>
+  // Function to insert text at cursor position in the active element
+  function insertText(text) {
+    const activeElement = document.activeElement;
+    if (activeElement.tagName.toLowerCase() === 'textarea' || 
+        activeElement.tagName.toLowerCase() === 'input') {
+      const startPos = activeElement.selectionStart;
+      const endPos = activeElement.selectionEnd;
+      activeElement.value = activeElement.value.substring(0, startPos) + 
+                           text + 
+                           activeElement.value.substring(endPos, activeElement.value.length);
+      activeElement.selectionStart = activeElement.selectionEnd = startPos + text.length;
+      activeElement.focus();
+    }
+  }
+  
+  // Function to insert a modifier at cursor position or after a variable
+  function insertModifier(modifier) {
+    const activeElement = document.activeElement;
+    if (activeElement.tagName.toLowerCase() === 'textarea' || 
+        activeElement.tagName.toLowerCase() === 'input') {
+      const startPos = activeElement.selectionStart;
+      const endPos = activeElement.selectionEnd;
+      const beforeCursor = activeElement.value.substring(0, startPos);
+      
+      // Check if there's a variable pattern before cursor
+      const variablePattern = /\{\{([^}]+)\}\}/;
+      const match = beforeCursor.match(variablePattern);
+      
+      if (match && match.index !== -1) {
+        // Find the position right after the last variable closing }}
+        const variableEndPos = beforeCursor.lastIndexOf('}}');
+        if (variableEndPos !== -1 && variableEndPos === startPos - 2) {
+          // Insert modifier right after the variable
+          activeElement.value = activeElement.value.substring(0, variableEndPos) + 
+                               modifier +
+                               activeElement.value.substring(variableEndPos, activeElement.value.length);
+          activeElement.selectionStart = activeElement.selectionEnd = variableEndPos + modifier.length + 2;
+        } else {
+          // Just insert at cursor if we're not right after a variable
+          activeElement.value = beforeCursor + modifier + activeElement.value.substring(endPos);
+          activeElement.selectionStart = activeElement.selectionEnd = startPos + modifier.length;
+        }
+      } else {
+        // Just insert at cursor if no variable pattern found
+        activeElement.value = beforeCursor + modifier + activeElement.value.substring(endPos);
+        activeElement.selectionStart = activeElement.selectionEnd = startPos + modifier.length;
+      }
+      
+      activeElement.focus();
+    }
+  }
+</script>
+</body></html>
 `;
 
 // Create a simple products page HTML
@@ -2310,8 +2478,61 @@ const productsHTML = `
       }
     }
   </script>
-</body>
-</html>
+
+<script>
+  // Function to insert text at cursor position in the active element
+  function insertText(text) {
+    const activeElement = document.activeElement;
+    if (activeElement.tagName.toLowerCase() === 'textarea' || 
+        activeElement.tagName.toLowerCase() === 'input') {
+      const startPos = activeElement.selectionStart;
+      const endPos = activeElement.selectionEnd;
+      activeElement.value = activeElement.value.substring(0, startPos) + 
+                           text + 
+                           activeElement.value.substring(endPos, activeElement.value.length);
+      activeElement.selectionStart = activeElement.selectionEnd = startPos + text.length;
+      activeElement.focus();
+    }
+  }
+  
+  // Function to insert a modifier at cursor position or after a variable
+  function insertModifier(modifier) {
+    const activeElement = document.activeElement;
+    if (activeElement.tagName.toLowerCase() === 'textarea' || 
+        activeElement.tagName.toLowerCase() === 'input') {
+      const startPos = activeElement.selectionStart;
+      const endPos = activeElement.selectionEnd;
+      const beforeCursor = activeElement.value.substring(0, startPos);
+      
+      // Check if there's a variable pattern before cursor
+      const variablePattern = /\{\{([^}]+)\}\}/;
+      const match = beforeCursor.match(variablePattern);
+      
+      if (match && match.index !== -1) {
+        // Find the position right after the last variable closing }}
+        const variableEndPos = beforeCursor.lastIndexOf('}}');
+        if (variableEndPos !== -1 && variableEndPos === startPos - 2) {
+          // Insert modifier right after the variable
+          activeElement.value = activeElement.value.substring(0, variableEndPos) + 
+                               modifier +
+                               activeElement.value.substring(variableEndPos, activeElement.value.length);
+          activeElement.selectionStart = activeElement.selectionEnd = variableEndPos + modifier.length + 2;
+        } else {
+          // Just insert at cursor if we're not right after a variable
+          activeElement.value = beforeCursor + modifier + activeElement.value.substring(endPos);
+          activeElement.selectionStart = activeElement.selectionEnd = startPos + modifier.length;
+        }
+      } else {
+        // Just insert at cursor if no variable pattern found
+        activeElement.value = beforeCursor + modifier + activeElement.value.substring(endPos);
+        activeElement.selectionStart = activeElement.selectionEnd = startPos + modifier.length;
+      }
+      
+      activeElement.focus();
+    }
+  }
+</script>
+</body></html>
 `;
 
 // Home page route (authenticated)
@@ -2335,26 +2556,33 @@ app.get('/', async (req, res) => {
   }
   
   // Serve the dashboard HTML
-  res.send(dashboardHTML);
+  res.send(renderHomePage());
 });
 
 // Templates route
 app.get('/templates', (req, res) => {
   // For a real implementation, this would check for authentication
-  res.send(templatesHTML);
+  res.send(renderTemplatesPage());
 });
 
 // Collections route
 app.get('/collections', (req, res) => {
   // For a real implementation, this would check for authentication
-  res.send(collectionsHTML);
+  res.send(renderCollectionsPage());
 });
 
 // Products route
 app.get('/products', (req, res) => {
   // For a real implementation, this would check for authentication
-  res.send(productsHTML);
+  res.send(renderProductsPage());
 });
+
+// Metafields route
+app.get('/metafields', (req, res) => {
+  // For a real implementation, this would check for authentication
+  res.send(renderMetafieldsPage());
+});
+
 
 // Create a simple homepage meta fields HTML
 const homepageHTML = `
@@ -3025,14 +3253,67 @@ const homepageHTML = `
       </form>
     </div>
   </div>
-</body>
-</html>
+
+<script>
+  // Function to insert text at cursor position in the active element
+  function insertText(text) {
+    const activeElement = document.activeElement;
+    if (activeElement.tagName.toLowerCase() === 'textarea' || 
+        activeElement.tagName.toLowerCase() === 'input') {
+      const startPos = activeElement.selectionStart;
+      const endPos = activeElement.selectionEnd;
+      activeElement.value = activeElement.value.substring(0, startPos) + 
+                           text + 
+                           activeElement.value.substring(endPos, activeElement.value.length);
+      activeElement.selectionStart = activeElement.selectionEnd = startPos + text.length;
+      activeElement.focus();
+    }
+  }
+  
+  // Function to insert a modifier at cursor position or after a variable
+  function insertModifier(modifier) {
+    const activeElement = document.activeElement;
+    if (activeElement.tagName.toLowerCase() === 'textarea' || 
+        activeElement.tagName.toLowerCase() === 'input') {
+      const startPos = activeElement.selectionStart;
+      const endPos = activeElement.selectionEnd;
+      const beforeCursor = activeElement.value.substring(0, startPos);
+      
+      // Check if there's a variable pattern before cursor
+      const variablePattern = /\{\{([^}]+)\}\}/;
+      const match = beforeCursor.match(variablePattern);
+      
+      if (match && match.index !== -1) {
+        // Find the position right after the last variable closing }}
+        const variableEndPos = beforeCursor.lastIndexOf('}}');
+        if (variableEndPos !== -1 && variableEndPos === startPos - 2) {
+          // Insert modifier right after the variable
+          activeElement.value = activeElement.value.substring(0, variableEndPos) + 
+                               modifier +
+                               activeElement.value.substring(variableEndPos, activeElement.value.length);
+          activeElement.selectionStart = activeElement.selectionEnd = variableEndPos + modifier.length + 2;
+        } else {
+          // Just insert at cursor if we're not right after a variable
+          activeElement.value = beforeCursor + modifier + activeElement.value.substring(endPos);
+          activeElement.selectionStart = activeElement.selectionEnd = startPos + modifier.length;
+        }
+      } else {
+        // Just insert at cursor if no variable pattern found
+        activeElement.value = beforeCursor + modifier + activeElement.value.substring(endPos);
+        activeElement.selectionStart = activeElement.selectionEnd = startPos + modifier.length;
+      }
+      
+      activeElement.focus();
+    }
+  }
+</script>
+</body></html>
 `;
 
 // Homepage route
 app.get('/homepage', (req, res) => {
   // For a real implementation, this would check for authentication
-  res.send(homepageHTML);
+  res.send(renderHomePage());
 });
 
 // Start scheduler service only in production
