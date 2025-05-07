@@ -284,17 +284,33 @@ app.get('/auth/callback', async (req, res) => {
         const shop = session.shop;
         const host = req.query.host;
         
+        console.log(`OAuth flow completed for shop: ${shop}, host ${host || 'not provided'}`);
+        
+        // Construct the return URL based on available information
+        let redirectUrl;
+        
         if (host) {
-          // If host is provided, use it to redirect back to Shopify admin
-          const decodedHost = Buffer.from(host, 'base64').toString('utf-8');
-          console.log('OAuth flow completed successfully, redirecting to Shopify admin with host:', decodedHost);
-          const redirectUrl = `https://${decodedHost}/apps/${process.env.SHOPIFY_API_KEY}`;
-          res.redirect(redirectUrl);
+          // If host is provided, decode it
+          try {
+            // The host parameter is base64 encoded
+            const decodedHost = Buffer.from(host, 'base64').toString('utf-8');
+            console.log('OAuth flow completed successfully, redirecting to Shopify admin with host:', decodedHost);
+            
+            // Format correctly for embedded app redirect
+            redirectUrl = `https://${decodedHost}/apps/${process.env.SHOPIFY_API_KEY}`;
+          } catch (error) {
+            console.error('Error decoding host parameter:', error);
+            // Fallback for invalid host
+            redirectUrl = `https://${shop}/admin/apps/${process.env.SHOPIFY_API_KEY}`;
+          }
         } else {
-          // Fallback to app home with success message
-          console.log('OAuth flow completed successfully, redirecting to app home (no host parameter)');
-          res.redirect('/?auth=success&shop=' + encodeURIComponent(shop));
+          // No host parameter - direct to Shopify admin
+          console.log('OAuth flow completed, redirecting to Shopify admin (no host parameter)');
+          redirectUrl = `https://${shop}/admin/apps/${process.env.SHOPIFY_API_KEY}`;
         }
+        
+        console.log(`Redirecting to: ${redirectUrl}`);
+        res.redirect(redirectUrl);
       }
     } catch (innerError) {
       console.error('Error during OAuth callback processing:', innerError);
@@ -4536,14 +4552,25 @@ const authMiddleware = async (req, res, next) => {
 };
 
 // Protected routes
-app.get('/', authMiddleware, (req, res) => {
-  // For embedded apps, we need to detect if we're coming from Shopify admin
-  const { host, shop } = req.query;
+app.get('/', (req, res) => {
+  // The root route is special - we need to handle both authenticated access
+  // and initial installation flows differently
+  
+  const { shop, host, hmac } = req.query;
   
   // Add a timestamp to help clear cache issues
   const timestamp = Date.now();
+  console.log('Root route accessed with query params:', { shop, host: host ? 'present' : 'missing', hmac: hmac ? 'present' : 'missing' });
   
-  // If host is provided, this is an embedded app request
+  // Check if this is an OAuth callback or installation flow
+  if (shop && !req.shopifySession) {
+    // This appears to be an installation flow
+    console.log('Initiating OAuth flow for installation from root route');
+    return res.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
+  }
+  
+  // If we get here, the user is authenticated or it's a direct access
+  // For embedded apps, we need to detect if we're coming from Shopify admin
   if (host) {
     console.log(`Serving dashboard as embedded app for shop: ${shop}, host: ${host}`);
     
@@ -4552,16 +4579,18 @@ app.get('/', authMiddleware, (req, res) => {
     const embeddedAppHtml = dashboardHTML.replace('</head>', `
       <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
       <script>
-        var AppBridge = window['app-bridge'];
-        var createApp = AppBridge.default;
-        var app = createApp({
-          apiKey: '${process.env.SHOPIFY_API_KEY}',
-          host: '${host}',
-          forceRedirect: true
-        });
-        // Use app.current.localOrigin to get embedded app's origin
-        // console.log('App initialized with host:', '${host}');
-        // console.log('App origin:', app.current.localOrigin);
+        try {
+          var AppBridge = window['app-bridge'];
+          var createApp = AppBridge.default;
+          var app = createApp({
+            apiKey: '${process.env.SHOPIFY_API_KEY}',
+            host: '${host}',
+            forceRedirect: true
+          });
+          console.log('App Bridge initialized successfully with host:', '${host}');
+        } catch (e) {
+          console.error('Error initializing App Bridge:', e);
+        }
       </script>
       </head>
     `);
@@ -4569,8 +4598,15 @@ app.get('/', authMiddleware, (req, res) => {
     res.send(embeddedAppHtml);
   } else {
     // This is a direct access, not through Shopify admin
-    console.log('Serving dashboard directly (not embedded)');
-    res.send(dashboardHTML);
+    // We'll still check authentication for direct access
+    if (!req.shopifySession) {
+      // For direct access with no session, redirect to documentation or info page
+      console.log('Direct access without session - showing generic welcome');
+      res.send(dashboardHTML);
+    } else {
+      console.log('Authenticated direct access - showing dashboard');
+      res.send(dashboardHTML);
+    }
   }
 });
 
