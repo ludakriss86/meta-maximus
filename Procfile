@@ -1,1 +1,1 @@
-web: node oauth-test-server.js
+web: node server/index.js

@@ -13,15 +13,27 @@ const scheduler = require('../src/services/scheduler');
 const app = express();
 const port = config.PORT; // Consistent port usage from config
 
-// Initialize Shopify API
+// Initialize Shopify API with detailed logging
+console.log(`Initializing Shopify API with:
+  - API Version: ${LATEST_API_VERSION}
+  - Host: ${process.env.HOST || `localhost:${port}`}
+  - Scopes: ${process.env.SCOPES}
+  - Environment: ${process.env.NODE_ENV}
+`);
+
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET,
   scopes: process.env.SCOPES.split(','),
   hostName: process.env.HOST || `localhost:${port}`,
   hostScheme: 'https',
-  apiVersion: ApiVersion.January24 || LATEST_API_VERSION,
+  apiVersion: LATEST_API_VERSION,
   isEmbeddedApp: true,
+  logger: {
+    log: (severity, message) => {
+      console.log(`[Shopify ${severity}]: ${message}`);
+    }
+  }
 });
 
 // Middleware
@@ -36,6 +48,20 @@ const SESSION_STORAGE = new Map();
 
 // Generate a random nonce for OAuth
 const generateNonce = () => crypto.randomBytes(16).toString('hex');
+
+// Status route to check configuration
+app.get('/status', (req, res) => {
+  res.json({
+    status: 'ok',
+    environment: process.env.NODE_ENV,
+    shopify_api: {
+      version: LATEST_API_VERSION,
+      host: process.env.HOST,
+      scopes: process.env.SCOPES.split(','),
+      timestamp: new Date().toISOString()
+    }
+  });
+});
 
 // Auth route - starts OAuth process
 app.get('/auth', async (req, res) => {
@@ -59,34 +85,48 @@ app.get('/auth', async (req, res) => {
   }
   
   console.log(`Processing auth for shop: ${shop}`);
+  console.log(`Using scopes: ${process.env.SCOPES}`);
   
   // Generate nonce and store in cookie
   const nonce = generateNonce();
   res.cookie('shopify_nonce', nonce, { signed: true });
   
-  // Redirect to Shopify for auth
-  const authUrl = await shopify.auth.begin({
-    shop,
-    callbackPath: '/auth/callback',
-    isOnline: false,
-    rawRequest: req,
-    rawResponse: res,
-  });
-  
-  res.redirect(authUrl);
+  try {
+    // Redirect to Shopify for auth
+    const authUrl = await shopify.auth.begin({
+      shop,
+      callbackPath: '/auth/callback',
+      isOnline: false,
+      rawRequest: req,
+      rawResponse: res,
+    });
+    
+    console.log(`Generated auth URL: ${authUrl}`);
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error('Error starting OAuth process:', error);
+    res.status(500).send(`Auth error: ${error.message}`);
+  }
 });
 
 // Auth callback route - completes OAuth process
 app.get('/auth/callback', async (req, res) => {
   try {
+    // Log callback details
+    console.log('Auth callback received with query params:', req.query);
+    
     // Get nonce from cookie
     const nonce = req.signedCookies.shopify_nonce;
+    console.log('Using nonce from cookie:', nonce ? 'present' : 'missing');
     
     // Complete OAuth process
+    console.log('Completing OAuth process...');
     const session = await shopify.auth.callback({
       rawRequest: req,
       rawResponse: res,
     });
+    
+    console.log('OAuth successful, received session for shop:', session.shop);
     
     // Store session in MongoDB
     try {
@@ -105,10 +145,33 @@ app.get('/auth/callback', async (req, res) => {
     res.clearCookie('shopify_nonce');
     
     // Redirect to app home
+    console.log('OAuth flow completed successfully, redirecting to app home');
     res.redirect('/');
   } catch (error) {
     console.error('Error during auth callback:', error);
-    res.status(500).send('Auth failed: ' + error.message);
+    console.error('Error details:', error.stack);
+    
+    // Provide a more user-friendly error page
+    res.status(500).send(`
+      <html>
+        <head>
+          <title>Authentication Error</title>
+          <style>
+            body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.5; max-width: 800px; margin: 0 auto; }
+            h1 { color: #bf0711; }
+            pre { background: #f4f6f8; padding: 15px; border-radius: 4px; overflow: auto; }
+            .back { display: inline-block; margin-top: 20px; color: #5c6ac4; text-decoration: none; }
+          </style>
+        </head>
+        <body>
+          <h1>Authentication Error</h1>
+          <p>There was a problem authenticating with Shopify:</p>
+          <pre>${error.message}</pre>
+          <p>Please try again or contact support if the issue persists.</p>
+          <a href="/" class="back">← Back to Home</a>
+        </body>
+      </html>
+    `);
   }
 });
 
