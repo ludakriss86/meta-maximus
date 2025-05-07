@@ -7,7 +7,7 @@
     "start": "node server/index.js",
     "dev": "nodemon server/index.js",
     "test": "jest",
-    "build": "remix build",
+    "build": "echo 'No build step required'",
     "lint": "eslint ."
   },
   "dependencies": {
