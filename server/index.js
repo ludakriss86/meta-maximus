@@ -402,6 +402,13 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
+// Installation page - easy access to start the auth process
+app.get('/install', (req, res) => {
+  console.log('Serving installation page');
+  // Serve the installation HTML file
+  res.sendFile(path.join(__dirname, '..', 'public', 'install.html'));
+});
+
 // Status route to check server and configuration status
 app.get('/status', (req, res) => {
   // Check MongoDB connection status
@@ -4570,19 +4577,37 @@ const homepageHTML = `
 
 // Auth middleware for app routes
 const authMiddleware = async (req, res, next) => {
+  // Check if this is an embedded request (has host parameter)
+  const isEmbedded = !!req.query.host;
   const shop = req.query.shop || process.env.SHOP;
   
-  // If no shop is provided, redirect to auth
-  if (!shop) {
-    return res.redirect('/auth?shop=' + encodeURIComponent(process.env.SHOP || 'your-store.myshopify.com'));
+  console.log(`Auth middleware check for shop: ${shop}, embedded: ${isEmbedded}`);
+  
+  // Special handling for embedded requests - they always need to pass through
+  // as they'll be redirected to auth if needed inside the app itself
+  if (isEmbedded) {
+    console.log('Embedded app request detected, allowing through middleware');
+    // No session checks for embedded requests from Shopify Admin
+    return next();
   }
   
+  // If no shop is provided on a direct access, redirect to install page
+  if (!shop) {
+    console.log('No shop provided, redirecting to install page');
+    return res.redirect('/install');
+  }
+  
+  // At this point, we have a shop and it's a direct access (not embedded)
+  // So we need to check for a valid session
   let session;
   
   // Try to load from MongoDB
   try {
     const database = require('../src/services/database');
     session = await database.loadSession(shop);
+    if (session) {
+      console.log(`Found MongoDB session for shop: ${shop}`);
+    }
   } catch (dbError) {
     console.error('Error loading session from MongoDB:', dbError);
   }
@@ -4591,10 +4616,14 @@ const authMiddleware = async (req, res, next) => {
   if (!session) {
     const sessionKey = `${shop}_offline`;
     session = SESSION_STORAGE.get(sessionKey);
+    if (session) {
+      console.log(`Found in-memory session for shop: ${shop}`);
+    }
   }
   
   // If no session found, redirect to auth
   if (!session) {
+    console.log(`No session found for shop: ${shop}, redirecting to auth`);
     return res.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
   }
   
