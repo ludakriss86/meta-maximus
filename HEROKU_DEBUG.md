@@ -27,7 +27,7 @@ The application requires several environment variables to function properly.
   SHOPIFY_API_KEY=e7bfdc6fed1ac843903db321b77056a9
   SHOPIFY_API_SECRET=e39aae96908c641e0225618d2fec3275
   SCOPES=write_products,write_content,read_products,read_content,write_metafields,read_metafields
-  HOST=meta-maximus.herokuapp.com
+  HOST=meta-maximus-20c92a32d730.herokuapp.com
   NODE_ENV=production
   MONGODB_URI=mongodb+srv://kristoffer:44IkaugdMbg9xv1d@cluster0.m1j3ce3.mongodb.net/meta-maximus
   MONGODB_DB_NAME=meta-maximus
@@ -83,7 +83,7 @@ If the application is still encountering errors, consider:
 Once the application is running, test the OAuth flow by visiting:
 
 ```
-https://meta-maximus.herokuapp.com/auth?shop=metamaximus.myshopify.com
+https://meta-maximus-20c92a32d730.herokuapp.com/auth?shop=metamaximus.myshopify.com
 ```
 
 If there are OAuth errors, verify the following:

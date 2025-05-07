@@ -9,7 +9,7 @@
 
 2. Updated the HOST environment variable to match the Heroku app URL:
    ```
-   HOST=meta-maximus.herokuapp.com
+   HOST=meta-maximus-20c92a32d730.herokuapp.com
    ```
 
 3. Set NODE_ENV to production:
@@ -26,7 +26,7 @@ To fix the OAuth "invalid_scope" error, you need to update the environment varia
 3. Click on "Reveal Config Vars"
 4. Update the following environment variables:
    - `SCOPES`: write_products,write_content,read_products,read_content,write_metafields,read_metafields
-   - `HOST`: meta-maximus.herokuapp.com
+   - `HOST`: meta-maximus-20c92a32d730.herokuapp.com
    - `NODE_ENV`: production
 
 ## Required Changes in Shopify Partner Dashboard
@@ -38,11 +38,11 @@ You also need to ensure your app's configuration in the Shopify Partner Dashboar
 3. Go to "App Setup" > "Configuration"
 4. Under "App URL", ensure it's set to:
    ```
-   https://meta-maximus.herokuapp.com
+   https://meta-maximus-20c92a32d730.herokuapp.com
    ```
 5. Under "Allowed redirection URL(s)", ensure it includes:
    ```
-   https://meta-maximus.herokuapp.com/auth/callback
+   https://meta-maximus-20c92a32d730.herokuapp.com/auth/callback
    ```
 6. Check the "API scopes" section to ensure all these scopes are requested:
    - write_products
@@ -68,7 +68,7 @@ git push heroku main
 
 Test the OAuth flow by visiting:
 ```
-https://meta-maximus.herokuapp.com/auth?shop=metamaximus.myshopify.com
+https://meta-maximus-20c92a32d730.herokuapp.com/auth?shop=metamaximus.myshopify.com
 ```
 
 This should now complete the OAuth flow without the "invalid_scope" error.

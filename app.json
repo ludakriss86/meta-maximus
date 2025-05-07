@@ -16,7 +16,7 @@
     },
     "HOST": {
       "description": "The hostname of your app (without https://)",
-      "value": "your-app-name.herokuapp.com"
+      "value": "meta-maximus-20c92a32d730.herokuapp.com"
     },
     "MONGODB_URI": {
       "description": "MongoDB connection string"
