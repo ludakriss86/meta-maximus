@@ -4735,46 +4735,58 @@ app.get('/', (req, res) => {
           
           console.log('App Bridge initialized successfully');
           
-          // Add debugging information to the DOM
-          document.addEventListener('DOMContentLoaded', function() {
-            var debugDiv = document.createElement('div');
-            debugDiv.style.padding = '15px';
-            debugDiv.style.margin = '15px 0';
-            debugDiv.style.background = '#f0f0f0';
-            debugDiv.style.border = '1px solid #ccc';
-            debugDiv.style.borderRadius = '4px';
-            debugDiv.innerHTML = '<h3>Installation Debug Info</h3>' + 
-                               '<p><strong>Shop:</strong> ${shop}</p>' + 
-                               '<p><strong>API Key:</strong> ${process.env.SHOPIFY_API_KEY}</p>' + 
-                               '<p><strong>Host:</strong> ${host}</p>';
-            
-            document.body.insertBefore(debugDiv, document.body.firstChild);
-            
-            // Add buttons for debugging
-            var authButton = document.createElement('button');
-            authButton.innerText = 'Manually Start Auth Flow';
-            authButton.style = 'display: block; margin: 20px auto; padding: 10px 20px; background: #5c6ac4; color: white; border: none; border-radius: 4px; text-align: center; max-width: 300px; cursor: pointer;';
-            authButton.onclick = function() {
-              console.log('Starting auth flow using App Bridge');
-              startAuth();
-            };
-            document.body.prepend(authButton);
-            
-            // Add diagnostic button
-            var diagButton = document.createElement('button');
-            diagButton.innerText = 'Check App Status';
-            diagButton.style = 'display: block; margin: 20px auto; padding: 10px 20px; background: #007755; color: white; border: none; border-radius: 4px; text-align: center; max-width: 300px; cursor: pointer;';
-            diagButton.onclick = function() {
-              var diagInfo = document.createElement('div');
-              diagInfo.style = 'padding: 15px; margin: 15px; background: #fff; border: 1px solid #ddd; border-radius: 4px;';
-              diagInfo.innerHTML = '<h3>App Bridge Status</h3>' +
-                                 '<p>App Bridge Loaded: ' + (typeof AppBridge !== 'undefined') + '</p>' +
-                                 '<p>App Initialized: ' + (typeof app !== 'undefined') + '</p>' +
-                                 '<p>Is Embedded: ' + (window.self !== window.top) + '</p>';
-              document.body.prepend(diagInfo);
-            };
-            document.body.prepend(diagButton);
-          });
+          // Add standard App Bridge utilities for navigation
+          var actions = window['app-bridge'].actions;
+          
+          // Set up title bar
+          var TitleBar = actions.TitleBar;
+          var titleBarOptions = {
+            title: 'Meta Maximus',
+          };
+          var myTitleBar = TitleBar.create(app, titleBarOptions);
+          
+          // Only add debugging in development mode
+          if (process.env.NODE_ENV === 'development') {
+            document.addEventListener('DOMContentLoaded', function() {
+              var debugDiv = document.createElement('div');
+              debugDiv.style.padding = '15px';
+              debugDiv.style.margin = '15px 0';
+              debugDiv.style.background = '#f0f0f0';
+              debugDiv.style.border = '1px solid #ccc';
+              debugDiv.style.borderRadius = '4px';
+              debugDiv.innerHTML = '<h3>Installation Debug Info</h3>' + 
+                                '<p><strong>Shop:</strong> ${shop}</p>' + 
+                                '<p><strong>API Key:</strong> ${process.env.SHOPIFY_API_KEY}</p>' + 
+                                '<p><strong>Host:</strong> ${host}</p>';
+              
+              document.body.insertBefore(debugDiv, document.body.firstChild);
+              
+              // Add buttons for debugging
+              var authButton = document.createElement('button');
+              authButton.innerText = 'Manually Start Auth Flow';
+              authButton.style = 'display: block; margin: 20px auto; padding: 10px 20px; background: #5c6ac4; color: white; border: none; border-radius: 4px; text-align: center; max-width: 300px; cursor: pointer;';
+              authButton.onclick = function() {
+                console.log('Starting auth flow using App Bridge');
+                startAuth();
+              };
+              document.body.prepend(authButton);
+              
+              // Add diagnostic button
+              var diagButton = document.createElement('button');
+              diagButton.innerText = 'Check App Status';
+              diagButton.style = 'display: block; margin: 20px auto; padding: 10px 20px; background: #007755; color: white; border: none; border-radius: 4px; text-align: center; max-width: 300px; cursor: pointer;';
+              diagButton.onclick = function() {
+                var diagInfo = document.createElement('div');
+                diagInfo.style = 'padding: 15px; margin: 15px; background: #fff; border: 1px solid #ddd; border-radius: 4px;';
+                diagInfo.innerHTML = '<h3>App Bridge Status</h3>' +
+                                  '<p>App Bridge Loaded: ' + (typeof AppBridge !== 'undefined') + '</p>' +
+                                  '<p>App Initialized: ' + (typeof app !== 'undefined') + '</p>' +
+                                  '<p>Is Embedded: ' + (window.self !== window.top) + '</p>';
+                document.body.prepend(diagInfo);
+              };
+              document.body.prepend(diagButton);
+            });
+          }
         } catch (e) {
           console.error('Error initializing App Bridge:', e);
         }
