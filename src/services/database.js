@@ -91,10 +91,10 @@ async function connectToDatabase() {
           // Disable all TLS/SSL certificate validation
           // This is necessary for some MongoDB Atlas configs to work with Heroku
           tls: true,
-          tlsInsecure: true, // Allows insecure TLS connections
+          // Do NOT use tlsInsecure with tlsAllowInvalidCertificates (they conflict)
+          // Only use one of these options, not both
           tlsAllowInvalidCertificates: true,
-          tlsAllowInvalidHostnames: true,
-          tlsDisableCertificateRevocationCheck: true
+          tlsAllowInvalidHostnames: true
         };
         
         client = new MongoClient(uri, options);
