@@ -261,6 +261,11 @@ app.get('/auth/callback', async (req, res) => {
       // Redirect to app home with success message
       console.log('OAuth flow completed successfully, redirecting to app home');
       res.redirect('/?auth=success');
+    } catch (innerError) {
+      console.error('Error during OAuth callback processing:', innerError);
+      console.error('Inner error details:', innerError.stack);
+      throw innerError; // Re-throw to be caught by the outer catch block
+    }
   } catch (error) {
     console.error('Error during auth callback:', error);
     console.error('Error details:', error.stack);
