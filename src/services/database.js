@@ -13,6 +13,18 @@ require('dotenv').config();
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
 const dbName = process.env.MONGODB_DB_NAME || 'meta-maximus';
 
+// Log connection info for debugging purposes in sanitized form
+console.log('MongoDB Connection Info:');
+console.log('- DB Name:', dbName);
+console.log('- URI Present:', !!uri);
+console.log('- URI Format:', uri ? (uri.startsWith('mongodb+srv://') ? 'srv format' : 'standard format') : 'missing');
+if (uri && uri.includes('@')) {
+  // Don't log credentials, just show protocol and host portion
+  const [protocol, rest] = uri.split('://');
+  const host = rest.split('@')[1];
+  console.log('- Host:', protocol + '://****@' + host);
+}
+
 let client;
 let db;
 
@@ -74,11 +86,15 @@ async function connectToDatabase() {
           // Timeout settings
           connectTimeoutMS: 30000,
           socketTimeoutMS: 45000,
-          // SSL settings
+          // SSL settings for Heroku-compatible configuration
           ssl: true,
+          // Disable all TLS/SSL certificate validation
+          // This is necessary for some MongoDB Atlas configs to work with Heroku
           tls: true,
+          tlsInsecure: true, // Allows insecure TLS connections
           tlsAllowInvalidCertificates: true,
-          tlsAllowInvalidHostnames: true
+          tlsAllowInvalidHostnames: true,
+          tlsDisableCertificateRevocationCheck: true
         };
         
         client = new MongoClient(uri, options);
@@ -1105,6 +1121,18 @@ process.on('exit', () => {
   });
 });
 
+/**
+ * Check if the database is connected
+ * @returns {boolean} True if connected, false otherwise
+ */
+function isConnected() {
+  if (USE_IN_MEMORY_STORAGE) {
+    return false;
+  }
+  
+  return !!(client && client.topology && client.topology.isConnected());
+}
+
 module.exports = {
   connectToDatabase,
   closeDatabaseConnection,
@@ -1121,5 +1149,6 @@ module.exports = {
   saveCustomRule,
   storeSession,
   loadSession,
-  validateTemplate
+  validateTemplate,
+  isConnected
 };

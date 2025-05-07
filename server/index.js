@@ -4527,7 +4527,8 @@ app.get('/', authMiddleware, (req, res) => {
   res.send(dashboardHTML);
 });
 
-app.get('/homepage', authMiddleware, (req, res) => {
+// Serve homepage without auth middleware like other routes
+app.get('/homepage', (req, res) => {
   res.send(homepageHTML);
 });
 
