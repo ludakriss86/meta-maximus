@@ -22,7 +22,10 @@ console.log(`Initializing Shopify API with:
 `);
 
 // Ensure scopes are properly formatted and trimmed
-const formattedScopes = process.env.SCOPES.split(',').map(scope => scope.trim());
+// Use default scopes if none provided
+const defaultScopes = 'write_products,read_products,read_content,write_content';
+const scopesString = process.env.SCOPES || defaultScopes;
+const formattedScopes = scopesString.split(',').map(scope => scope.trim());
 console.log('Formatted scopes:', formattedScopes);
 
 const shopify = shopifyApi({
@@ -72,33 +75,72 @@ app.get('/auth', async (req, res) => {
   let shop = req.query.shop;
   
   if (!shop) {
-    return res.status(400).send('Missing shop parameter');
+    return res.status(400).json({
+      error: 'Missing shop parameter',
+      message: 'A shop parameter is required to start the OAuth process'
+    });
   }
   
-  // Clean up shop parameter
-  // Remove https:// or http:// if included
-  if (shop.startsWith('https://')) {
-    shop = shop.replace('https://', '');
-  } else if (shop.startsWith('http://')) {
-    shop = shop.replace('http://', '');
-  }
-  
-  // Remove trailing slash if present
-  if (shop.endsWith('/')) {
-    shop = shop.slice(0, -1);
+  // Clean up shop parameter with robust formatting
+  // First, ensure proper formatting of the shop name
+  try {
+    // Remove protocol if present (http:// or https://)
+    shop = shop.replace(/^https?:\/\//, '');
+    
+    // Remove any trailing slash
+    shop = shop.replace(/\/+$/, '');
+    
+    // Remove any path components (anything after the first slash)
+    shop = shop.split('/')[0];
+    
+    // Ensure it ends with myshopify.com if it doesn't already
+    if (!shop.includes('myshopify.com')) {
+      if (!shop.includes('.')) {
+        shop = `${shop}.myshopify.com`;
+      } else {
+        // If it has some domain but not myshopify.com, we need to validate
+        const validDomain = shop.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]\.[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+$/);
+        if (!validDomain) {
+          return res.status(400).json({
+            error: 'Invalid shop domain',
+            message: 'The provided shop domain is not valid. Please use your-store.myshopify.com format'
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error formatting shop parameter:', error);
+    return res.status(400).json({
+      error: 'Invalid shop parameter',
+      message: 'The provided shop parameter could not be processed'
+    });
   }
   
   console.log(`Processing auth for shop: ${shop}`);
-  console.log(`Using scopes: ${process.env.SCOPES}`);
+  console.log(`Using scopes: ${formattedScopes.join(',')}`);
   
-  // Generate nonce and store in cookie
+  // Generate nonce for security and store in cookie
   const nonce = generateNonce();
-  res.cookie('shopify_nonce', nonce, { signed: true });
+  res.cookie('shopify_nonce', nonce, { 
+    signed: true,
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax'
+  });
   
   try {
-    // Log auth details for debugging
+    // Validate required configuration
+    if (!process.env.SHOPIFY_API_KEY || !process.env.SHOPIFY_API_SECRET) {
+      throw new Error('Missing Shopify API credentials. Please check your environment variables.');
+    }
+    
+    if (formattedScopes.length === 0) {
+      throw new Error('No scopes defined. Please check your SCOPES environment variable.');
+    }
+    
+    // Log auth details for debugging (with sensitive data protection)
     console.log('Auth configuration:', {
-      apiKey: process.env.SHOPIFY_API_KEY ? process.env.SHOPIFY_API_KEY.substring(0, 4) + '...' : 'missing',
+      apiKey: process.env.SHOPIFY_API_KEY ? `${process.env.SHOPIFY_API_KEY.substring(0, 4)}...` : 'missing',
       hasSecret: !!process.env.SHOPIFY_API_SECRET,
       scopes: formattedScopes,
       host: process.env.HOST,
@@ -108,7 +150,7 @@ app.get('/auth', async (req, res) => {
     // Verify scopes are actually being passed to the auth.begin method
     console.log('Shopify API config scopes:', shopify.config.scopes);
     
-    // Redirect to Shopify for auth
+    // Begin OAuth flow and redirect to Shopify
     const authUrl = await shopify.auth.begin({
       shop,
       callbackPath: '/auth/callback',
@@ -148,41 +190,77 @@ app.get('/auth', async (req, res) => {
 // Auth callback route - completes OAuth process
 app.get('/auth/callback', async (req, res) => {
   try {
-    // Log callback details
-    console.log('Auth callback received with query params:', req.query);
+    // Validate that required query parameters are present
+    if (!req.query.shop || !req.query.code) {
+      console.error('Missing required callback parameters');
+      return res.status(400).json({
+        error: 'Invalid callback',
+        message: 'Required parameters are missing from the callback'
+      });
+    }
+    
+    // Log callback details (sanitized)
+    console.log('Auth callback received with shop:', req.query.shop);
+    console.log('Auth callback state:', req.query.state ? 'present' : 'missing');
     
     // Get nonce from cookie
     const nonce = req.signedCookies.shopify_nonce;
     console.log('Using nonce from cookie:', nonce ? 'present' : 'missing');
     
-    // Complete OAuth process
-    console.log('Completing OAuth process...');
-    const session = await shopify.auth.callback({
-      rawRequest: req,
-      rawResponse: res,
-    });
-    
-    console.log('OAuth successful, received session for shop:', session.shop);
-    
-    // Store session in MongoDB
-    try {
-      const database = require('../src/services/database');
-      await database.storeSession(session);
-      console.log('Session stored in MongoDB successfully');
-    } catch (dbError) {
-      console.error('Error storing session in MongoDB:', dbError);
-      // Fall back to in-memory storage
-      const sessionKey = `${session.shop}_${session.isOnline ? 'online' : 'offline'}`;
-      SESSION_STORAGE.set(sessionKey, session);
-      console.log('Session stored in memory as fallback');
+    if (!nonce) {
+      console.warn('No nonce found in cookies, this might be a security issue or a cookie problem');
     }
     
-    // Clean up nonce
-    res.clearCookie('shopify_nonce');
-    
-    // Redirect to app home
-    console.log('OAuth flow completed successfully, redirecting to app home');
-    res.redirect('/');
+    // Complete OAuth process with enhanced logging
+    console.log('Completing OAuth process...');
+    try {
+      const session = await shopify.auth.callback({
+        rawRequest: req,
+        rawResponse: res,
+      });
+      
+      if (!session || !session.shop) {
+        throw new Error('Invalid session returned from Shopify OAuth callback');
+      }
+      
+      console.log('OAuth successful, received session for shop:', session.shop);
+      console.log('Session access scopes:', session.scope);
+      console.log('Session expires:', session.expires ? new Date(session.expires).toISOString() : 'no expiry');
+      
+      // Store session in MongoDB with better error handling
+      try {
+        const database = require('../src/services/database');
+        
+        // Check database connection before attempting to store
+        if (database.isConnected()) {
+          await database.storeSession(session);
+          console.log('Session stored in MongoDB successfully');
+        } else {
+          throw new Error('Database not connected');
+        }
+      } catch (dbError) {
+        console.error('Error storing session in MongoDB:', dbError);
+        console.error('Error details:', dbError.stack);
+        
+        // Fall back to in-memory storage
+        const sessionKey = `${session.shop}_${session.isOnline ? 'online' : 'offline'}`;
+        SESSION_STORAGE.set(sessionKey, session);
+        console.log('Session stored in memory as fallback');
+        
+        // Log the memory storage status
+        console.log(`Memory session storage contains ${SESSION_STORAGE.size} sessions`);
+      }
+      
+      // Clean up nonce with secure settings
+      res.clearCookie('shopify_nonce', {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: 'lax'
+      });
+      
+      // Redirect to app home with success message
+      console.log('OAuth flow completed successfully, redirecting to app home');
+      res.redirect('/?auth=success');
   } catch (error) {
     console.error('Error during auth callback:', error);
     console.error('Error details:', error.stack);
@@ -211,53 +289,141 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-// API Routes - protected by authentication
+// Status route to check server and configuration status
+app.get('/status', (req, res) => {
+  // Check MongoDB connection status
+  let dbStatus = 'unknown';
+  try {
+    const database = require('../src/services/database');
+    dbStatus = database.isConnected() ? 'connected' : 'disconnected';
+  } catch (err) {
+    dbStatus = `error: ${err.message}`;
+  }
+
+  // Return server status information
+  res.json({
+    status: 'ok',
+    server: {
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+      node_version: process.version
+    },
+    shopify: {
+      api_version: LATEST_API_VERSION,
+      scopes: process.env.SCOPES.split(','),
+      host: process.env.HOST
+    },
+    database: {
+      status: dbStatus,
+      type: process.env.MONGODB_URI ? 'mongodb' : 'in-memory'
+    }
+  });
+});
+
+// API Routes - protected by authentication with improved error handling
 app.use('/api', async (req, res, next) => {
-  // For testing purposes, allow the preview API to work without authentication
-  if (req.path === '/preview') {
+  // Log API request with method and path for debugging
+  console.log(`API request: ${req.method} ${req.path}`);
+  
+  // For testing and development purposes or special endpoints
+  // Allow access without authentication in specific scenarios
+  const publicEndpoints = ['preview', 'homepage/template', 'store/data', 'templates', 'status'];
+  const isPublicEndpoint = publicEndpoints.some(path => req.path.includes(path));
+  
+  // Skip authentication for public endpoints or in development mode
+  if ((isPublicEndpoint && (process.env.NODE_ENV === 'development' || process.env.ALLOW_UNAUTHENTICATED_API === 'true')) || 
+      req.path === '/status') {
+    console.log(`Allowing unauthenticated access to ${req.path} in ${process.env.NODE_ENV || 'unknown'} mode`);
     return next();
   }
   
-  const shop = req.query.shop || process.env.SHOP;
+  // Get shop from multiple sources with validation
+  const shop = req.query.shop || req.headers['x-shopify-shop-domain'] || process.env.SHOP;
   
   if (!shop) {
-    return res.status(400).json({ error: 'Missing shop parameter' });
-  }
-  
-  let session;
-  
-  // Try to load from MongoDB
-  try {
-    const database = require('../src/services/database');
-    session = await database.loadSession(shop);
-    
-    if (session) {
-      console.log('Loaded session from MongoDB');
-    }
-  } catch (dbError) {
-    console.error('Error loading session from MongoDB:', dbError);
-  }
-  
-  // Fall back to in-memory storage if not found in MongoDB
-  if (!session) {
-    const sessionKey = `${shop}_offline`;
-    session = SESSION_STORAGE.get(sessionKey);
-    
-    if (session) {
-      console.log('Found session in memory storage');
-    }
-  }
-  
-  if (!session) {
-    return res.status(401).json({ 
-      error: 'Unauthorized', 
-      redirect: `/auth?shop=${encodeURIComponent(shop)}`
+    console.log('API request rejected: Missing shop identification');
+    return res.status(400).json({ 
+      error: 'missing_shop',
+      message: 'Shop parameter is required. Provide it as a query parameter or header.',
+      details: 'Add ?shop=your-store.myshopify.com to your request or set the X-Shopify-Shop-Domain header'
     });
   }
   
-  // Set session for API routes
-  req.shopifySession = session;
-  next();
+  // Clean up shop domain if needed (similar to auth route)
+  let cleanShop = shop.toString().trim();
+  cleanShop = cleanShop.replace(/^https?:\/\//, '');
+  cleanShop = cleanShop.replace(/\/+$/, '');
+  
+  // Session loading with improved error handling
+  let session;
+  let sessionSource = 'none';
+  
+  try {
+    // Try to load from MongoDB first
+    try {
+      const database = require('../src/services/database');
+      
+      // Check if database is connected before attempting to load
+      if (database.isConnected()) {
+        session = await database.loadSession(cleanShop);
+        
+        if (session) {
+          console.log(`Loaded valid session from MongoDB for shop: ${cleanShop}`);
+          sessionSource = 'mongodb';
+        }
+      } else {
+        console.warn('MongoDB not connected, skipping database session lookup');
+      }
+    } catch (dbError) {
+      console.error('Error loading session from MongoDB:', dbError.message);
+      // Continue to in-memory fallback without blocking
+    }
+    
+    // Fall back to in-memory storage if not found in MongoDB
+    if (!session) {
+      const sessionKey = `${cleanShop}_offline`;
+      session = SESSION_STORAGE.get(sessionKey);
+      
+      if (session) {
+        console.log(`Found valid session in memory storage for shop: ${cleanShop}`);
+        sessionSource = 'memory';
+      }
+    }
+    
+    // Check for valid session with detailed error messages
+    if (!session) {
+      console.log(`No session found for shop: ${cleanShop}`);
+      return res.status(401).json({ 
+        error: 'unauthorized', 
+        message: 'No valid session found for this shop. Please authenticate first.',
+        redirect: `/auth?shop=${encodeURIComponent(cleanShop)}`
+      });
+    }
+    
+    // Validate session hasn't expired
+    if (session.expires && new Date(session.expires) < new Date()) {
+      console.log(`Session for shop ${cleanShop} has expired at ${new Date(session.expires).toISOString()}`);
+      return res.status(401).json({ 
+        error: 'session_expired', 
+        message: 'Your session has expired. Please authenticate again.',
+        redirect: `/auth?shop=${encodeURIComponent(cleanShop)}`
+      });
+    }
+    
+    // Set validated session for API routes
+    req.shopifySession = session;
+    req.shopDomain = cleanShop;
+    console.log(`API request authorized for shop: ${cleanShop} (session source: ${sessionSource})`);
+    next();
+  } catch (error) {
+    // Handle unexpected errors in authentication flow
+    console.error('Unexpected error in API authentication middleware:', error);
+    res.status(500).json({ 
+      error: 'server_error', 
+      message: 'An unexpected error occurred while processing your request.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 }, require('./routes/api'));
 
 // Create a simple testing HTML file for our new dashboard
