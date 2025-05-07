@@ -1,10 +1,19 @@
 # Meta Maximus Setup Instructions
 
-Follow these steps to set up and run your Meta Maximus app with Shopify.
+Follow these steps to set up and use your Meta Maximus app with Shopify.
 
-## Prerequisites
+## Option 1: Using the Deployed Heroku App (Recommended)
 
-- Node.js (v16 or newer)
+The app is already deployed to Heroku at:
+https://meta-maximus-20c92a32d730.herokuapp.com/
+
+This is the easiest way to use the app, as everything is already set up and running.
+
+## Option 2: Local Development
+
+If you need to run the app locally, you'll need:
+
+- Node.js (v18 or newer)
 - MongoDB Atlas account set up
 - Shopify Partner account
 - ngrok or similar tool for creating a public URL
@@ -66,6 +75,19 @@ Follow these steps to set up and run your Meta Maximus app with Shopify.
    ```
 
 ## Step 4: Install the App on Your Test Store
+
+### Using the Heroku Deployment
+
+1. Install the app on your test store by visiting:
+   ```
+   https://meta-maximus-20c92a32d730.herokuapp.com/auth?shop=your-store.myshopify.com
+   ```
+
+2. Complete the OAuth process by allowing the requested permissions
+
+3. You should be redirected to the app's dashboard
+
+### Using Local Development
 
 1. Install the app on your test store by visiting:
    ```
