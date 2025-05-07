@@ -59,7 +59,7 @@ async function connectToDatabase() {
       // Create a MongoDB client if it doesn't exist
       if (!client) {
         logger.debug('Creating new MongoDB client instance', { uri: uri.replace(/:[^\/]+@/, ':***@') });
-        client = new MongoClient(uri, {
+        const options = {
           useNewUrlParser: true,
           useUnifiedTopology: true,
           serverApi: {
@@ -73,8 +73,15 @@ async function connectToDatabase() {
           maxIdleTimeMS: 30000,
           // Timeout settings
           connectTimeoutMS: 30000,
-          socketTimeoutMS: 45000
-        });
+          socketTimeoutMS: 45000,
+          // SSL settings
+          ssl: true,
+          tls: true,
+          tlsAllowInvalidCertificates: true,
+          tlsAllowInvalidHostnames: true
+        };
+        
+        client = new MongoClient(uri, options);
       }
 
       // Connect to MongoDB if not already connected

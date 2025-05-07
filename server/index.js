@@ -39,11 +39,26 @@ const generateNonce = () => crypto.randomBytes(16).toString('hex');
 
 // Auth route - starts OAuth process
 app.get('/auth', async (req, res) => {
-  const shop = req.query.shop;
+  let shop = req.query.shop;
   
   if (!shop) {
     return res.status(400).send('Missing shop parameter');
   }
+  
+  // Clean up shop parameter
+  // Remove https:// or http:// if included
+  if (shop.startsWith('https://')) {
+    shop = shop.replace('https://', '');
+  } else if (shop.startsWith('http://')) {
+    shop = shop.replace('http://', '');
+  }
+  
+  // Remove trailing slash if present
+  if (shop.endsWith('/')) {
+    shop = shop.slice(0, -1);
+  }
+  
+  console.log(`Processing auth for shop: ${shop}`);
   
   // Generate nonce and store in cookie
   const nonce = generateNonce();
