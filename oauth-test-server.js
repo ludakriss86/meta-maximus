@@ -5,16 +5,29 @@ const app = express();
 // Get port from environment or use default
 const port = process.env.PORT || 3001;
 
-// Display environment variables
-const getEnvInfo = () => ({
-  PORT: process.env.PORT || 'not set',
-  NODE_ENV: process.env.NODE_ENV || 'not set',
-  HOST: process.env.HOST || 'not set',
-  HAS_SHOPIFY_CONFIG: Boolean(process.env.SHOPIFY_API_KEY && process.env.SHOPIFY_API_SECRET),
-  SCOPES: process.env.SCOPES || 'not set',
-  NODE_VERSION: process.version,
-  TIMESTAMP: new Date().toISOString()
-});
+// Display environment variables - forcing a refresh each time
+const getEnvInfo = () => {
+  // Force a reload of environment variables by clearing the cache
+  Object.keys(require.cache).forEach(key => {
+    if (key.includes('node_modules/dotenv')) {
+      delete require.cache[key];
+    }
+  });
+  
+  // Load environment variables
+  try { require('dotenv').config(); } catch (e) { console.log('Error loading dotenv:', e); }
+  
+  return {
+    PORT: process.env.PORT || 'not set',
+    NODE_ENV: process.env.NODE_ENV || 'not set',
+    HOST: process.env.HOST || 'not set',
+    HAS_SHOPIFY_CONFIG: Boolean(process.env.SHOPIFY_API_KEY && process.env.SHOPIFY_API_SECRET),
+    SCOPES: process.env.SCOPES || 'not set',
+    NODE_VERSION: process.version,
+    TIMESTAMP: new Date().toISOString(),
+    LAST_UPDATED: new Date().toISOString()
+  };
+};
 
 // Root path
 app.get('/', (req, res) => {
@@ -39,6 +52,10 @@ app.get('/', (req, res) => {
       <h2>Environment Information:</h2>
       <pre>${JSON.stringify(env, null, 2)}</pre>
       
+      <div style="margin: 20px 0;">
+        <a href="/?refresh=${Date.now()}" class="btn" style="background: #50b83c;">Refresh Environment Variables</a>
+      </div>
+      
       <h2>Test OAuth Flow:</h2>
       <a href="/auth?shop=metamaximus.myshopify.com" class="btn">Test OAuth</a>
     </body>
@@ -54,11 +71,15 @@ app.get('/auth', (req, res) => {
     return res.status(400).send('Missing shop parameter');
   }
   
+  // Directly read from environment to ensure we get the latest values
+  const currentScopes = process.env.SCOPES || 'not set';
+  console.log('Current SCOPES from environment:', currentScopes);
+  
   // Show the auth parameters that would be used
   const authParams = {
     shop,
     apiKey: process.env.SHOPIFY_API_KEY ? process.env.SHOPIFY_API_KEY.substring(0, 4) + '...' : 'not set',
-    scopes: process.env.SCOPES,
+    scopes: currentScopes,
     redirectUri: `https://${process.env.HOST}/auth/callback`,
     nonce: 'mock_nonce_' + Date.now()
   };
