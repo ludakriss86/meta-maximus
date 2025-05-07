@@ -73,8 +73,21 @@ app.get('/status', (req, res) => {
 // Auth route - starts OAuth process
 app.get('/auth', async (req, res) => {
   let shop = req.query.shop;
+  const host = req.query.host;
+  
+  // DETAILED DEBUG LOGGING
+  console.log('\n================ AUTH ROUTE ACCESS ================');
+  console.log('Time:', new Date().toISOString());
+  console.log('Query Parameters:');
+  console.log('- shop:', shop);
+  console.log('- host:', host);
+  console.log('Request Headers:');
+  console.log('- User-Agent:', req.headers['user-agent']);
+  console.log('- Referer:', req.headers['referer']);
+  console.log('=================================================\n');
   
   if (!shop) {
+    console.error('Missing shop parameter in auth route');
     return res.status(400).json({
       error: 'Missing shop parameter',
       message: 'A shop parameter is required to start the OAuth process'
@@ -101,6 +114,7 @@ app.get('/auth', async (req, res) => {
         // If it has some domain but not myshopify.com, we need to validate
         const validDomain = shop.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]\.[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+$/);
         if (!validDomain) {
+          console.error('Invalid shop domain format:', shop);
           return res.status(400).json({
             error: 'Invalid shop domain',
             message: 'The provided shop domain is not valid. Please use your-store.myshopify.com format'
@@ -121,6 +135,8 @@ app.get('/auth', async (req, res) => {
   
   // Generate nonce for security and store in cookie
   const nonce = generateNonce();
+  console.log('Generated nonce for auth:', nonce.substring(0, 6) + '...');
+  
   res.cookie('shopify_nonce', nonce, { 
     signed: true,
     secure: process.env.NODE_ENV === 'production',
@@ -150,21 +166,35 @@ app.get('/auth', async (req, res) => {
     // Verify scopes are actually being passed to the auth.begin method
     console.log('Shopify API config scopes:', shopify.config.scopes);
     
-    // Begin OAuth flow and redirect to Shopify
-    // The shopify.auth.begin method may handle the response itself
-    const authUrl = await shopify.auth.begin({
+    // Prepare options for auth.begin
+    const authOptions = {
       shop,
       callbackPath: '/auth/callback',
       isOnline: false,
       rawRequest: req,
       rawResponse: res,
-    });
+    };
+    
+    // Add host if available to maintain embedded context
+    if (host) {
+      console.log('Using host in auth flow:', host);
+      authOptions.callbackUrl = `https://${process.env.HOST}/auth/callback?host=${host}`;
+    }
+    
+    console.log('Starting auth.begin with options:', JSON.stringify(authOptions, null, 2));
+    
+    // Begin OAuth flow and redirect to Shopify
+    // The shopify.auth.begin method may handle the response itself
+    const authUrl = await shopify.auth.begin(authOptions);
     
     console.log(`Generated auth URL: ${authUrl}`);
     
     // Only redirect if headers haven't been sent yet
     if (authUrl && !res.headersSent) {
+      console.log('Redirecting to Shopify auth URL...');
       res.redirect(authUrl);
+    } else {
+      console.log('Headers already sent, not redirecting');
     }
   } catch (error) {
     console.error('Error starting OAuth process:', error);
@@ -201,8 +231,25 @@ app.get('/auth', async (req, res) => {
 // Auth callback route - completes OAuth process
 app.get('/auth/callback', async (req, res) => {
   try {
+    // DETAILED DEBUG LOGGING
+    console.log('\n================ AUTH CALLBACK ACCESS ================');
+    console.log('Time:', new Date().toISOString());
+    console.log('Query Parameters:');
+    const { shop, code, state, host } = req.query;
+    console.log('- shop:', shop);
+    console.log('- code:', code ? '[REDACTED]' : 'missing');
+    console.log('- state:', state);
+    console.log('- host:', host);
+    console.log('Cookies:');
+    console.log('- Has shopify_nonce cookie:', !!req.signedCookies.shopify_nonce);
+    console.log('Request Headers:');
+    console.log('- User-Agent:', req.headers['user-agent']);
+    console.log('- Referer:', req.headers['referer']);
+    console.log('- Cookie:', req.headers['cookie'] ? 'present' : 'missing');
+    console.log('=================================================\n');
+    
     // Validate that required query parameters are present
-    if (!req.query.shop || !req.query.code) {
+    if (!shop || !code) {
       console.error('Missing required callback parameters');
       return res.status(400).json({
         error: 'Invalid callback',
@@ -210,16 +257,14 @@ app.get('/auth/callback', async (req, res) => {
       });
     }
     
-    // Log callback details (sanitized)
-    console.log('Auth callback received with shop:', req.query.shop);
-    console.log('Auth callback state:', req.query.state ? 'present' : 'missing');
-    
     // Get nonce from cookie
     const nonce = req.signedCookies.shopify_nonce;
-    console.log('Using nonce from cookie:', nonce ? 'present' : 'missing');
+    console.log('Using nonce from cookie:', nonce ? `${nonce.substring(0, 6)}...` : 'missing');
     
     if (!nonce) {
       console.warn('No nonce found in cookies, this might be a security issue or a cookie problem');
+      console.warn('Cookies in request:', JSON.stringify(req.cookies));
+      console.warn('Signed cookies in request:', JSON.stringify(req.signedCookies));
     }
     
     // Complete OAuth process with enhanced logging
@@ -227,6 +272,7 @@ app.get('/auth/callback', async (req, res) => {
     try {
       // The Shopify auth.callback() method may handle the response automatically
       // We'll check if the response is already finished after the call
+      console.log('Calling shopify.auth.callback()...');
       const session = await shopify.auth.callback({
         rawRequest: req,
         rawResponse: res,
@@ -239,12 +285,16 @@ app.get('/auth/callback', async (req, res) => {
       }
       
       if (!session || !session.shop) {
+        console.error('Invalid or missing session data after OAuth callback');
         throw new Error('Invalid session returned from Shopify OAuth callback');
       }
       
-      console.log('OAuth successful, received session for shop:', session.shop);
-      console.log('Session access scopes:', session.scope);
-      console.log('Session expires:', session.expires ? new Date(session.expires).toISOString() : 'no expiry');
+      console.log('✅ OAuth successful!');
+      console.log('Session details:');
+      console.log('- Shop:', session.shop);
+      console.log('- Scopes:', session.scope);
+      console.log('- Expires:', session.expires ? new Date(session.expires).toISOString() : 'no expiry');
+      console.log('- Is online:', session.isOnline);
       
       // Store session in MongoDB with better error handling
       try {
@@ -253,26 +303,25 @@ app.get('/auth/callback', async (req, res) => {
         // Check database connection before attempting to store
         if (database.isConnected()) {
           await database.storeSession(session);
-          console.log('Session stored in MongoDB successfully');
+          console.log('✅ Session stored in MongoDB successfully');
         } else {
+          console.warn('⚠️ Database not connected for session storage');
           throw new Error('Database not connected');
         }
       } catch (dbError) {
         console.error('Error storing session in MongoDB:', dbError);
-        console.error('Error details:', dbError.stack);
         
         // Fall back to in-memory storage
         const sessionKey = `${session.shop}_${session.isOnline ? 'online' : 'offline'}`;
         SESSION_STORAGE.set(sessionKey, session);
-        console.log('Session stored in memory as fallback');
-        
-        // Log the memory storage status
+        console.log('⚠️ Session stored in memory as fallback');
         console.log(`Memory session storage contains ${SESSION_STORAGE.size} sessions`);
       }
       
       // If we get here and the response hasn't been sent yet, we can send our own response
       if (!res.headersSent) {
         // Clean up nonce with secure settings
+        console.log('Clearing shopify_nonce cookie');
         res.clearCookie('shopify_nonce', {
           secure: process.env.NODE_ENV === 'production',
           httpOnly: true,
@@ -281,39 +330,42 @@ app.get('/auth/callback', async (req, res) => {
         
         // For embedded apps, redirect back to Shopify admin
         // This is critical for app installation to complete properly
-        const shop = session.shop;
-        const host = req.query.host;
+        const shopDomain = session.shop;
+        const hostParam = req.query.host;
         
-        console.log(`OAuth flow completed for shop: ${shop}, host ${host || 'not provided'}`);
+        console.log(`🔄 Preparing redirect after successful OAuth for shop: ${shopDomain}`);
+        console.log(`Host parameter available: ${hostParam ? 'yes' : 'no'}`);
         
         // Construct the return URL based on available information
         let redirectUrl;
         
-        if (host) {
+        if (hostParam) {
           // If host is provided, decode it
           try {
             // The host parameter is base64 encoded
-            const decodedHost = Buffer.from(host, 'base64').toString('utf-8');
-            console.log('OAuth flow completed successfully, redirecting to Shopify admin with host:', decodedHost);
+            const decodedHost = Buffer.from(hostParam, 'base64').toString('utf-8');
+            console.log('Decoded host:', decodedHost);
             
             // Format correctly for embedded app redirect
             redirectUrl = `https://${decodedHost}/apps/${process.env.SHOPIFY_API_KEY}`;
           } catch (error) {
             console.error('Error decoding host parameter:', error);
             // Fallback for invalid host
-            redirectUrl = `https://${shop}/admin/apps/${process.env.SHOPIFY_API_KEY}`;
+            redirectUrl = `https://${shopDomain}/admin/apps/${process.env.SHOPIFY_API_KEY}`;
           }
         } else {
           // No host parameter - direct to Shopify admin
-          console.log('OAuth flow completed, redirecting to Shopify admin (no host parameter)');
-          redirectUrl = `https://${shop}/admin/apps/${process.env.SHOPIFY_API_KEY}`;
+          console.log('No host parameter, redirecting directly to Shopify admin');
+          redirectUrl = `https://${shopDomain}/admin/apps/${process.env.SHOPIFY_API_KEY}`;
         }
         
-        console.log(`Redirecting to: ${redirectUrl}`);
+        console.log(`🔀 Redirecting to: ${redirectUrl}`);
         res.redirect(redirectUrl);
+      } else {
+        console.log('Headers already sent, not performing redirect');
       }
     } catch (innerError) {
-      console.error('Error during OAuth callback processing:', innerError);
+      console.error('❌ Error during OAuth callback processing:', innerError);
       console.error('Inner error details:', innerError.stack);
       throw innerError; // Re-throw to be caught by the outer catch block
     }
@@ -4556,29 +4608,50 @@ app.get('/', (req, res) => {
   // The root route is special - we need to handle both authenticated access
   // and initial installation flows differently
   
-  const { shop, host, hmac } = req.query;
+  const { shop, host, hmac, timestamp } = req.query;
+  const currentTimestamp = Date.now();
   
-  // Add a timestamp to help clear cache issues
-  const timestamp = Date.now();
-  console.log('Root route accessed with query params:', { shop, host: host ? 'present' : 'missing', hmac: hmac ? 'present' : 'missing' });
+  // DETAILED DEBUG LOGGING
+  console.log('\n================ ROOT ROUTE ACCESS ================');
+  console.log('Time:', new Date().toISOString());
+  console.log('Query Parameters:');
+  console.log('- shop:', shop);
+  console.log('- host:', host);
+  console.log('- hmac:', hmac ? hmac.substring(0, 10) + '...' : 'none');
+  console.log('- timestamp:', timestamp);
+  console.log('Request Headers:');
+  console.log('- User-Agent:', req.headers['user-agent']);
+  console.log('- Referer:', req.headers['referer']);
+  console.log('Session Info:');
+  console.log('- Has shopifySession:', !!req.shopifySession);
+  if (req.shopifySession) {
+    console.log('- Session shop:', req.shopifySession.shop);
+    console.log('- Session scope:', req.shopifySession.scope);
+  }
+  console.log('=================================================\n');
   
-  // Check if this is an OAuth callback or installation flow
+  // Special handling for first-time installation
+  // If we have a shop parameter but no session, start OAuth
   if (shop && !req.shopifySession) {
-    // This appears to be an installation flow
-    console.log('Initiating OAuth flow for installation from root route');
+    console.log(`INSTALLATION FLOW DETECTED - Redirecting to auth for shop: ${shop}`);
     return res.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
   }
   
-  // If we get here, the user is authenticated or it's a direct access
-  // For embedded apps, we need to detect if we're coming from Shopify admin
+  // Embedded app from Shopify Admin (has host parameter)
   if (host) {
-    console.log(`Serving dashboard as embedded app for shop: ${shop}, host: ${host}`);
+    console.log(`EMBEDDED APP MODE - Serving app for shop: ${shop}, host: ${host}`);
     
     // Add App Bridge script tag and initialization to the HTML
     // This is critical for embedded apps to communicate with Shopify admin
     const embeddedAppHtml = dashboardHTML.replace('</head>', `
       <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
       <script>
+        // Debug info in browser console
+        console.log('DEBUG INFO:');
+        console.log('API Key:', '${process.env.SHOPIFY_API_KEY}');
+        console.log('Host:', '${host}');
+        console.log('Shop:', '${shop}');
+        
         try {
           var AppBridge = window['app-bridge'];
           var createApp = AppBridge.default;
@@ -4587,7 +4660,16 @@ app.get('/', (req, res) => {
             host: '${host}',
             forceRedirect: true
           });
-          console.log('App Bridge initialized successfully with host:', '${host}');
+          console.log('App Bridge initialized successfully');
+          
+          // Add a button to force redirect to auth
+          setTimeout(function() {
+            var authLink = document.createElement('a');
+            authLink.href = '/auth?shop=${encodeURIComponent(shop || '')}';
+            authLink.innerText = 'Manually Start Auth Flow';
+            authLink.style = 'display: block; margin: 20px auto; padding: 10px 20px; background: #5c6ac4; color: white; text-decoration: none; border-radius: 4px; text-align: center; max-width: 300px;';
+            document.body.prepend(authLink);
+          }, 1000);
         } catch (e) {
           console.error('Error initializing App Bridge:', e);
         }
@@ -4597,14 +4679,12 @@ app.get('/', (req, res) => {
     
     res.send(embeddedAppHtml);
   } else {
-    // This is a direct access, not through Shopify admin
-    // We'll still check authentication for direct access
+    // Direct access (no host parameter)
     if (!req.shopifySession) {
-      // For direct access with no session, redirect to documentation or info page
-      console.log('Direct access without session - showing generic welcome');
+      console.log('DIRECT ACCESS - No session, showing welcome page');
       res.send(dashboardHTML);
     } else {
-      console.log('Authenticated direct access - showing dashboard');
+      console.log('DIRECT ACCESS - With session, showing dashboard');
       res.send(dashboardHTML);
     }
   }
