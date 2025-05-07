@@ -1,0 +1,311 @@
+const homepageHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home Page Settings - Meta Maximus</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f6f6f7;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      padding: 20px;
+    }
+    .nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .nav a {
+      padding: 10px 15px;
+      background: #5c6ac4;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      min-height: 100px;
+      margin-bottom: 5px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    button {
+      padding: 10px 15px;
+      background: #5c6ac4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .badge.good {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    .badge.warning {
+      background: #ffea8a;
+      color: #8a6116;
+    }
+    .badge.bad {
+      background: #ffd2d2;
+      color: #bf0711;
+    }
+    
+    
+    .character-count {
+      font-size: 12px;
+      margin-bottom: 15px;
+      color: #637381;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .badge.good {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    .badge.warning {
+      background: #ffea8a;
+      color: #8a6116;
+    }
+    .badge.bad {
+      background: #ffd2d2;
+      color: #bf0711;
+    }
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+    .preview-section {
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .google-preview {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background: #f9f9f9;
+      max-width: 600px;
+      font-family: arial, sans-serif;
+    }
+    .google-preview-title {
+      color: #1a0dab;
+      font-size: 18px;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .google-preview-url {
+      color: #006621;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+    .google-preview-description {
+      color: #545454;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Home Page Settings</h1>
+    
+    <div class="nav">
+      <a href="/">Home</a>
+      <a href="/homepage">Home Page Settings</a>
+      <a href="/collections">Collection Settings</a>
+      <a href="/products">Product Settings</a>
+    </div>
+    
+    <!-- Global Settings Info Card -->
+    <div class="card">
+      <h2>Global Home Page Settings</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        These are your default settings that will override the settings in Shopify. 
+        It might take several days before the results appear in Google search results, 
+        depending on how often Google indexes your site.
+      </p>
+      
+      <div>
+        <label for="homeTitle">Meta Title Template</label>
+        <textarea id="homeTitle">{{storeName}} - {{season}} {{year}} Collection</textarea>
+        <div class="character-count">
+          <span id="homeTitleCount">43</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div>
+        <label for="homeDescription">Meta Description Template</label>
+        <textarea id="homeDescription">Shop our collection of quality products. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} off with our current sale!{{else}}New items added regularly.{{endif}}</textarea>
+        <div class="character-count">
+          <span id="homeDescriptionCount">110</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div style="margin-top: 15px; display: flex; gap: 10px;">
+        <button id="saveHomeBtn">Save Home Page Templates</button>
+        <button id="previewHomeBtn">Preview in Search</button>
+      </div>
+    </div>
+    
+    <!-- Search Preview -->
+    <div class="card preview-section" id="searchPreview">
+      <h3>Google Search Preview</h3>
+      <div class="google-preview">
+        <div class="google-preview-title" id="previewTitle">Your Store: Quality Products for 2025</div>
+        <div class="google-preview-url">https://your-store.myshopify.com/</div>
+        <div class="google-preview-description" id="previewDescription">
+          Shop our collection of quality products. Save up to 30% off with our current sale!
+        </div>
+      </div>
+    </div>
+    
+    <!-- Scheduler Section -->
+    <div class="card">
+      <h2>Scheduled Changes</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        Schedule meta tag changes to automatically activate on specific dates.
+        This is useful for sales, seasonal campaigns, or any time-limited promotions.
+      </p>
+      
+      <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+        <div style="flex: 1;">
+          <label for="scheduleStart">Start Date</label>
+          <input type="date" id="scheduleStart" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-top: 5px;">
+        </div>
+        <div style="flex: 1;">
+          <label for="scheduleEnd">End Date (Optional)</label>
+          <input type="date" id="scheduleEnd" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-top: 5px;">
+        </div>
+      </div>
+      
+      <div>
+        <label for="scheduleTitle">Scheduled Meta Title Template</label>
+        <textarea id="scheduleTitle" placeholder="Enter the meta title to use during the scheduled period">{{storeName}} - SALE! Up to {{maxDiscountPercentage}} OFF {{season}} {{year}}</textarea>
+      </div>
+      
+      <div>
+        <label for="scheduleDescription">Scheduled Meta Description Template</label>
+        <textarea id="scheduleDescription" placeholder="Enter the meta description to use during the scheduled period">Limited time offer: Save up to {{maxDiscountPercentage}} on our {{season}} collection. Shop now before the sale ends!</textarea>
+      </div>
+      
+      <div style="margin-top: 15px;">
+        <button id="scheduleBtn">Schedule Changes</button>
+      </div>
+    </div>
+    
+    <!-- Variable Reference Card -->
+    <div class="card">
+      <h2>Variable Reference</h2>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+          <h3>Basic Variables</h3>
+          <ul>
+            <li><code>{{year}}</code> - Current year (e.g., 2025)</li>
+            <li><code>{{season}}</code> - Current season (Spring, Summer, Fall, Winter)</li>
+          </ul>
+          
+          <h3>Store Variables</h3>
+          <ul>
+            <li><code>{{storeName}}</code> - Your store's name</li>
+            <li><code>{{storeDomain}}</code> - Store domain</li>
+            <li><code>{{totalProducts}}</code> - Total number of products</li>
+          </ul>
+        </div>
+        
+        <div>
+          <h3>Discount Variables</h3>
+          <ul>
+            <li><code>{{maxDiscountPercentage}}</code> - Highest discount percentage</li>
+            <li><code>{{discountRange}}</code> - Range of discounts (e.g., "20-50%")</li>
+            <li><code>{{hasDiscount}}</code> - Boolean flag for discounts</li>
+            <li><code>{{discountedCount}}</code> - Number of discounted products</li>
+            <li><code>{{avgDiscount}}</code> - Average discount percentage</li>
+          </ul>
+          
+          <h3>Format Modifiers</h3>
+          <ul>
+            <li><code>{{variable:lowercase}}</code> - Convert to lowercase</li>
+            <li><code>{{variable:uppercase}}</code> - Convert to uppercase</li>
+          </ul>
+          
+          <h3>Conditional Logic</h3>
+          <p><code>{{if hasDiscount}}On Sale!{{else}}Regular Price{{endif}}</code></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Simple character counter
+    document.getElementById('homeTitle').addEventListener('input', function() {
+      document.getElementById('homeTitleCount').textContent = this.value.length;
+    });
+    
+    document.getElementById('homeDescription').addEventListener('input', function() {
+      document.getElementById('homeDescriptionCount').textContent = this.value.length;
+    });
+    
+    // Preview button
+    document.getElementById('previewHomeBtn').addEventListener('click', function() {
+      const title = document.getElementById('homeTitle').value
+        .replace('{{storeName}}', 'Your Store')
+        .replace('{{season}}', 'Summer')
+        .replace('{{year}}', '2025');
+      
+      const description = document.getElementById('homeDescription').value
+        .replace('{{if hasDiscount}}', '')
+        .replace('{{maxDiscountPercentage}}', '30%')
+        .replace('{{else}}', '')
+        .replace('{{endif}}', '');
+      
+      document.getElementById('previewTitle').textContent = title;
+      document.getElementById('previewDescription').textContent = description;
+    });
+    
+    // Save button
+    document.getElementById('saveHomeBtn').addEventListener('click', function() {
+      // In a real app, this would save to the server
+      alert('Home page templates saved successfully!');
+    });
+  </script>
+</body>
+</html>
+`;

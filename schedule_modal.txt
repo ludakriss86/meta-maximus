@@ -1,0 +1,53 @@
+
+  <\!-- Schedule Modal -->
+  <div id="scheduleModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Schedule Template Changes</h2>
+      
+      <form id="scheduleForm">
+        <div>
+          <label for="scheduleTitle">Meta Title Template</label>
+          <textarea id="scheduleTitle">{{storeName}} - SALE\! Up to {{maxDiscountPercentage}} OFF {{season}} {{year}}</textarea>
+        </div>
+        
+        <div>
+          <label for="scheduleDescription">Meta Description Template</label>
+          <textarea id="scheduleDescription">Limited time offer: Save up to {{maxDiscountPercentage}} on our {{season}} collection. Shop now before the sale ends\!</textarea>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; margin-top: 20px;">
+          <div style="flex: 1;">
+            <label for="scheduleStart">Start Date</label>
+            <input type="date" id="scheduleStart" class="date-picker" style="width: 100%;">
+          </div>
+          <div style="flex: 1;">
+            <label for="scheduleEnd">End Date (Optional)</label>
+            <input type="date" id="scheduleEnd" class="date-picker" style="width: 100%;">
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="margin-bottom: 10px;">
+            <input type="checkbox" id="scheduleOverrideGlobal" checked>
+            <label for="scheduleOverrideGlobal" style="display: inline; font-weight: normal;">Override global settings</label>
+          </div>
+        </div>
+        
+        <div class="google-preview">
+          <h3>Search Preview</h3>
+          <div class="google-preview-title" id="schedulePreviewTitle">Your Store - SALE\! Up to 30% OFF Summer 2025</div>
+          <div class="google-preview-url">https://your-store.myshopify.com/</div>
+          <div class="google-preview-description" id="schedulePreviewDescription">
+            Limited time offer: Save up to 30% on our Summer collection. Shop now before the sale ends\!
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="button secondary" id="scheduleCancel">Cancel</button>
+          <button type="button" class="button" id="schedulePreview">Preview</button>
+          <button type="submit" class="button">Schedule Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>

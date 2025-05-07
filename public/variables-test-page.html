@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meta Maximus - Variables Test Page</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f6f6f7;
+      color: #212b36;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #5c6ac4;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      padding: 20px;
+    }
+    
+    .section-heading {
+      background: #f4f6f8;
+      padding: 10px 15px;
+      border-radius: 5px;
+      margin-top: 0;
+    }
+    
+    .variable-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .variable-card {
+      border: 1px solid #e4e9f0;
+      border-radius: 5px;
+      padding: 15px;
+    }
+    
+    .variable-card h3 {
+      margin-top: 0;
+      border-bottom: 1px solid #e4e9f0;
+      padding-bottom: 10px;
+      color: #5c6ac4;
+    }
+    
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      min-height: 100px;
+      margin-bottom: 10px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    
+    input[type="text"] {
+      min-height: auto;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    .variable-list {
+      background: #f9fafb;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+    
+    .variable-list h4 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      color: #637381;
+    }
+    
+    .variable-list ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    
+    .variable-list li {
+      margin-bottom: 8px;
+    }
+    
+    code {
+      font-family: monospace;
+      background-color: #f1f5f9;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 14px;
+    }
+    
+    .nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .nav a {
+      padding: 10px 15px;
+      background: #5c6ac4;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    
+    /* Variable buttons styling */
+    .variable-buttons {
+      margin: 4px 0 6px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    
+    .badge-button {
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    /* Regular variables */
+    .badge-button.var {
+      background-color: #e0e5f0;
+      color: #5c6ac4;
+    }
+    .badge-button.var:hover {
+      background-color: #c9cfe0;
+    }
+    
+    /* Primary variables */
+    .badge-button.primary {
+      background-color: #eaf5fe;
+      color: #007ace;
+    }
+    .badge-button.primary:hover {
+      background-color: #b4dbf7;
+    }
+    
+    /* Conditional logic */
+    .badge-button.conditional {
+      background-color: #e3f1df;
+      color: #108043;
+    }
+    .badge-button.conditional:hover {
+      background-color: #bbe5b3;
+    }
+    
+    /* Format modifiers */
+    .badge-button.format {
+      background-color: #f1e9ff;
+      color: #5c6ac4;
+    }
+    .badge-button.format:hover {
+      background-color: #e3d6ff;
+    }
+    
+    .preview-section {
+      background: #f9fafb;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+    }
+    
+    .preview-title {
+      font-weight: bold;
+      color: #1a0dab;
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+    
+    .preview-url {
+      color: #006621;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    
+    .preview-description {
+      color: #4d5156;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    
+    .demo-btn {
+      margin-top: 10px;
+      padding: 8px 15px;
+      background: #5c6ac4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .demo-btn:hover {
+      background: #4959bd;
+    }
+    
+    .character-count {
+      font-size: 12px;
+      margin-bottom: 10px;
+      color: #637381;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-left: 5px;
+    }
+    
+    .badge.good {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    
+    .badge.warning {
+      background: #ffea8a;
+      color: #8a6116;
+    }
+    
+    .badge.bad {
+      background: #ffd2d2;
+      color: #bf0711;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Meta Maximus - Variables Test Page</h1>
+    
+    <div class="nav">
+      <a href="#homepage">Homepage Variables</a>
+      <a href="#collections">Collections Variables</a>
+      <a href="#products">Products Variables</a>
+    </div>
+    
+    <div class="card">
+      <h2 class="section-heading" id="homepage">Homepage Variables</h2>
+      
+      <div>
+        <label for="homeTitle">Homepage Meta Title Template</label>
+        <div class="variable-buttons">
+          <!-- Common variables -->
+          <button type="button" class="badge-button var" onclick="insertVariable('homeTitle', '{{shopifyTitle}}')">DEFAULT</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('homeTitle', '{{year}}')">YEAR</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('homeTitle', '{{month}}')">MONTH</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('homeTitle', '{{season}}')">SEASON</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('homeTitle', '{{storeName}}')">STORE</button>
+          <!-- Conditionals -->
+          <button type="button" class="badge-button conditional" onclick="insertVariable('homeTitle', '{{if condition}}')">IF</button>
+          <button type="button" class="badge-button conditional" onclick="insertVariable('homeTitle', '{{else}}')">ELSE</button>
+          <button type="button" class="badge-button conditional" onclick="insertVariable('homeTitle', '{{endif}}')">ENDIF</button>
+          
+          <!-- Format modifiers -->
+          <button type="button" class="badge-button format" onclick="insertModifier('homeTitle', ':initialCaps')">INITIAL CAPS</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('homeTitle', ':uppercase')">UPPER</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('homeTitle', ':lowercase')">LOWER</button>
+        </div>
+        <input type="text" id="homeTitle" value="{{storeName}} - {{season}} {{year}} Collection" style="min-height: 0; font-size: 16px;">
+        <div class="character-count">
+          <span id="homeTitleCount">43</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div>
+        <label for="homeDescription">Homepage Meta Description Template</label>
+        <div class="variable-buttons">
+          <!-- Common variables -->
+          <button type="button" class="badge-button var" onclick="insertVariable('homeDescription', '{{shopifyDescription}}')">DEFAULT</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{year}}')">YEAR</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{month}}')">MONTH</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{season}}')">SEASON</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{storeName}}')">STORE</button>
+          <!-- Conditionals -->
+          <button type="button" class="badge-button conditional" onclick="insertVariable('homeDescription', '{{if hasDiscount}}')">IF DISCOUNT</button>
+          <button type="button" class="badge-button conditional" onclick="insertVariable('homeDescription', '{{else}}')">ELSE</button>
+          <button type="button" class="badge-button conditional" onclick="insertVariable('homeDescription', '{{endif}}')">ENDIF</button>
+          <!-- Special variables -->
+          <button type="button" class="badge-button var" onclick="insertVariable('homeDescription', '{{maxDiscountPercentage}}')">DISCOUNT%</button>
+          
+          <!-- Format modifiers -->
+          <button type="button" class="badge-button format" onclick="insertModifier('homeDescription', ':initialCaps')">INITIAL CAPS</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('homeDescription', ':uppercase')">UPPER</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('homeDescription', ':lowercase')">LOWER</button>
+        </div>
+        <textarea id="homeDescription">Shop our collection of quality products. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} off with our current sale!{{else}}New items added regularly.{{endif}}</textarea>
+        <div class="character-count">
+          <span id="homeDescriptionCount">110</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div class="preview-section">
+        <h3>Preview:</h3>
+        <div class="preview-title" id="homePreviewTitle">Your Store - Summer 2025 Collection</div>
+        <div class="preview-url">https://your-store.myshopify.com/</div>
+        <div class="preview-description" id="homePreviewDesc">Shop our collection of quality products. Save up to 30% off with our current sale!</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2 class="section-heading" id="collections">Collections Variables</h2>
+      
+      <div>
+        <label for="collectionTitle">Collection Meta Title Template</label>
+        <div class="variable-buttons">
+          <!-- Common variables -->
+          <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{shopifyTitle}}')">DEFAULT</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('collectionTitle', '{{year}}')">YEAR</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('collectionTitle', '{{month}}')">MONTH</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('collectionTitle', '{{season}}')">SEASON</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{date}}')">DATE</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{productTitle}}')">PRODUCT</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{collectionTitle}}')">COLLECTION</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{storeName}}')">STORE</button>
+          
+          <!-- Conditional logic -->
+          <button type="button" class="badge-button conditional" onclick="insertVariable('collectionTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
+          <button type="button" class="badge-button conditional" onclick="insertVariable('collectionTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
+          
+          <!-- Format modifiers -->
+          <button type="button" class="badge-button format" onclick="insertModifier('collectionTitle', ':initialCaps')">INITIAL CAPS</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('collectionTitle', ':uppercase')">UPPER</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('collectionTitle', ':lowercase')">LOWER</button>
+        </div>
+        <input type="text" id="collectionTitle" value="{{collectionTitle}} - {{season}} {{year}} Collection | {{storeName}}" style="min-height: 0; font-size: 16px;">
+        <div class="character-count">
+          <span id="collectionTitleCount">52</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div>
+        <label for="collectionDescription">Collection Meta Description Template</label>
+        <div class="variable-buttons">
+          <!-- Common variables -->
+          <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{shopifyDescription}}')">DEFAULT</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('collectionDescription', '{{year}}')">YEAR</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('collectionDescription', '{{month}}')">MONTH</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('collectionDescription', '{{season}}')">SEASON</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{date}}')">DATE</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{productTitle}}')">PRODUCT</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{collectionTitle}}')">COLLECTION</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{storeName}}')">STORE</button>
+          
+          <!-- Conditional logic -->
+          <button type="button" class="badge-button conditional" onclick="insertVariable('collectionDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
+          <button type="button" class="badge-button conditional" onclick="insertVariable('collectionDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
+          
+          <!-- Format modifiers -->
+          <button type="button" class="badge-button format" onclick="insertModifier('collectionDescription', ':initialCaps')">INITIAL CAPS</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('collectionDescription', ':uppercase')">UPPER</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('collectionDescription', ':lowercase')">LOWER</button>
+        </div>
+        <textarea id="collectionDescription">Shop our {{collectionTitle}} collection for {{year}}. {{if hasDiscount}}Save up to 30% with our current sale!{{else}}New styles added regularly.{{endif}}</textarea>
+        <div class="character-count">
+          <span id="collectionDescriptionCount">94</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div class="preview-section">
+        <h3>Preview:</h3>
+        <div class="preview-title" id="collectionPreviewTitle">Summer Collection - Summer 2025 Collection | Your Store</div>
+        <div class="preview-url">https://your-store.myshopify.com/collections/summer</div>
+        <div class="preview-description" id="collectionPreviewDesc">Shop our Summer Collection collection for 2025. Save up to 30% with our current sale!</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2 class="section-heading" id="products">Products Variables</h2>
+      
+      <div>
+        <label for="productTitle">Product Meta Title Template</label>
+        <div class="variable-buttons">
+          <!-- Common variables -->
+          <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{shopifyTitle}}')">DEFAULT</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('productTitle', '{{year}}')">YEAR</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('productTitle', '{{month}}')">MONTH</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('productTitle', '{{season}}')">SEASON</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{date}}')">DATE</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{productTitle}}')">PRODUCT</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{collectionTitle}}')">COLLECTION</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{storeName}}')">STORE</button>
+          
+          <!-- Conditional logic -->
+          <button type="button" class="badge-button conditional" onclick="insertVariable('productTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
+          <button type="button" class="badge-button conditional" onclick="insertVariable('productTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
+          
+          <!-- Format modifiers -->
+          <button type="button" class="badge-button format" onclick="insertModifier('productTitle', ':initialCaps')">INITIAL CAPS</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('productTitle', ':uppercase')">UPPER</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('productTitle', ':lowercase')">LOWER</button>
+        </div>
+        <input type="text" id="productTitle" value="{{productTitle}} | {{collectionTitle}} | {{storeName}}" style="min-height: 0; font-size: 16px;">
+        <div class="character-count">
+          <span id="productTitleCount">40</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div>
+        <label for="productDescription">Product Meta Description Template</label>
+        <div class="variable-buttons">
+          <!-- Common variables -->
+          <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{shopifyDescription}}')">DEFAULT</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('productDescription', '{{year}}')">YEAR</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('productDescription', '{{month}}')">MONTH</button>
+          <button type="button" class="badge-button primary" onclick="insertVariable('productDescription', '{{season}}')">SEASON</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{date}}')">DATE</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{productTitle}}')">PRODUCT</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{collectionTitle}}')">COLLECTION</button>
+          <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{storeName}}')">STORE</button>
+          
+          <!-- Conditional logic -->
+          <button type="button" class="badge-button conditional" onclick="insertVariable('productDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
+          <button type="button" class="badge-button conditional" onclick="insertVariable('productDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
+          
+          <!-- Format modifiers -->
+          <button type="button" class="badge-button format" onclick="insertModifier('productDescription', ':initialCaps')">INITIAL CAPS</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('productDescription', ':uppercase')">UPPER</button>
+          <button type="button" class="badge-button format" onclick="insertModifier('productDescription', ':lowercase')">LOWER</button>
+        </div>
+        <textarea id="productDescription">Shop our {{productTitle}} from the {{collectionTitle}} collection. {{if hasDiscount}}On sale now! Save up to 30% for a limited time.{{else}}Premium quality from {{storeName}}.{{endif}}</textarea>
+        <div class="character-count">
+          <span id="productDescriptionCount">125</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div class="preview-section">
+        <h3>Preview:</h3>
+        <div class="preview-title" id="productPreviewTitle">Blue T-Shirt | Summer Collection | Your Store</div>
+        <div class="preview-url">https://your-store.myshopify.com/products/blue-t-shirt</div>
+        <div class="preview-description" id="productPreviewDesc">Shop our Blue T-Shirt from the Summer Collection collection. On sale now! Save up to 30% for a limited time.</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2 class="section-heading">All Available Variables</h2>
+      
+      <div class="variable-section">
+        <div class="variable-card">
+          <h3>Common Variables</h3>
+          <ul>
+            <li><code>{{year}}</code> - Current year (e.g., 2025)</li>
+            <li><code>{{month}}</code> - Current month (e.g., July)</li>
+            <li><code>{{season}}</code> - Current season (e.g., Summer)</li>
+            <li><code>{{date}}</code> - Current date</li>
+            <li><code>{{storeName}}</code> - Store name</li>
+            <li><code>{{shopifyTitle}}</code> - Default title from Shopify</li>
+            <li><code>{{shopifyDescription}}</code> - Default description from Shopify</li>
+          </ul>
+        </div>
+        
+        <div class="variable-card">
+          <h3>Page-Specific Variables</h3>
+          <ul>
+            <li><code>{{productTitle}}</code> - Product title</li>
+            <li><code>{{collectionTitle}}</code> - Collection title</li>
+            <li><code>{{maxDiscountPercentage}}</code> - Maximum discount %</li>
+          </ul>
+        </div>
+        
+        <div class="variable-card">
+          <h3>Conditional Logic</h3>
+          <ul>
+            <li><code>{{if hasDiscount}}...{{endif}}</code> - If discount is available</li>
+            <li><code>{{if hasDiscount}}...{{else}}...{{endif}}</code> - If/else condition</li>
+            <li><code>{{if condition}}</code> - Generic condition start</li>
+            <li><code>{{else}}</code> - Else clause</li>
+            <li><code>{{endif}}</code> - End condition</li>
+          </ul>
+        </div>
+        
+        <div class="variable-card">
+          <h3>Format Modifiers</h3>
+          <ul>
+            <li><code>:initialCaps</code> - First letter of each word capitalized</li>
+            <li><code>:uppercase</code> - All uppercase letters</li>
+            <li><code>:lowercase</code> - All lowercase letters</li>
+          </ul>
+          <p>Example: <code>{{productTitle:uppercase}}</code></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Character counter and real-time preview
+    document.addEventListener('DOMContentLoaded', function() {
+      // Count characters for all fields and update previews
+      const fields = [
+        { id: 'homeTitle', countId: 'homeTitleCount', previewId: 'homePreviewTitle' },
+        { id: 'homeDescription', countId: 'homeDescriptionCount', previewId: 'homePreviewDesc' },
+        { id: 'collectionTitle', countId: 'collectionTitleCount', previewId: 'collectionPreviewTitle' },
+        { id: 'collectionDescription', countId: 'collectionDescriptionCount', previewId: 'collectionPreviewDesc' },
+        { id: 'productTitle', countId: 'productTitleCount', previewId: 'productPreviewTitle' },
+        { id: 'productDescription', countId: 'productDescriptionCount', previewId: 'productPreviewDesc' }
+      ];
+      
+      fields.forEach(field => {
+        const elem = document.getElementById(field.id);
+        const countElem = document.getElementById(field.countId);
+        const previewElem = document.getElementById(field.previewId);
+        
+        if (elem && countElem) {
+          countElem.textContent = elem.value.length;
+          
+          elem.addEventListener('input', function() {
+            countElem.textContent = this.value.length;
+            updatePreview(field.id, field.previewId);
+          });
+        }
+      });
+      
+      // Initial preview for all sections
+      updatePreview('homeTitle', 'homePreviewTitle');
+      updatePreview('homeDescription', 'homePreviewDesc');
+      updatePreview('collectionTitle', 'collectionPreviewTitle');
+      updatePreview('collectionDescription', 'collectionPreviewDesc');
+      updatePreview('productTitle', 'productPreviewTitle');
+      updatePreview('productDescription', 'productPreviewDesc');
+    });
+    
+    // Function to update previews
+    function updatePreview(sourceId, previewId) {
+      const source = document.getElementById(sourceId);
+      const preview = document.getElementById(previewId);
+      
+      if (!source || !preview) return;
+      
+      let text = source.value
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{month}}/g, 'July')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{date}}/g, 'July 15, 2025')
+        .replace(/{{storeName}}/g, 'Your Store')
+        .replace(/{{shopifyTitle}}/g, sourceId === 'productTitle' ? 'Blue T-Shirt' : 
+                             sourceId === 'collectionTitle' ? 'Summer Collection' : 
+                             'Your Store')
+        .replace(/{{shopifyDescription}}/g, 'Default description from Shopify')
+        .replace(/{{productTitle}}/g, 'Blue T-Shirt')
+        .replace(/{{collectionTitle}}/g, 'Summer Collection')
+        .replace(/{{maxDiscountPercentage}}/g, '30%');
+      
+      // Handle conditional logic
+      text = text.replace(/{{if hasDiscount}}(.*?){{else}}(.*?){{endif}}/g, '$1');
+      text = text.replace(/{{if hasDiscount}}(.*?){{endif}}/g, '$1');
+      text = text.replace(/{{if condition}}(.*?){{else}}(.*?){{endif}}/g, '$1');
+      text = text.replace(/{{if condition}}(.*?){{endif}}/g, '$1');
+      
+      // Handle format modifiers
+      text = text.replace(/{{(.+?):uppercase}}/g, (match, p1) => {
+        const value = p1 === 'productTitle' ? 'Blue T-Shirt' : 
+                     p1 === 'collectionTitle' ? 'Summer Collection' : 
+                     p1 === 'storeName' ? 'Your Store' : p1;
+        return value.toUpperCase();
+      });
+      
+      text = text.replace(/{{(.+?):lowercase}}/g, (match, p1) => {
+        const value = p1 === 'productTitle' ? 'Blue T-Shirt' : 
+                     p1 === 'collectionTitle' ? 'Summer Collection' : 
+                     p1 === 'storeName' ? 'Your Store' : p1;
+        return value.toLowerCase();
+      });
+      
+      text = text.replace(/{{(.+?):initialCaps}}/g, (match, p1) => {
+        const value = p1 === 'productTitle' ? 'Blue T-Shirt' : 
+                     p1 === 'collectionTitle' ? 'Summer Collection' : 
+                     p1 === 'storeName' ? 'Your Store' : p1;
+        return value.replace(/\b\w/g, l => l.toUpperCase());
+      });
+      
+      // Remove any remaining variable syntax
+      text = text.replace(/{{.*?}}/g, '');
+      
+      preview.textContent = text;
+    }
+    
+    // Variable insertion functions
+    function insertVariable(textareaId, variable) {
+      const textarea = document.getElementById(textareaId);
+      if (!textarea) return;
+      
+      // Get cursor position
+      const startPos = textarea.selectionStart;
+      const endPos = textarea.selectionEnd;
+      
+      // Insert variable at cursor position
+      textarea.value = textarea.value.substring(0, startPos) + 
+                      variable + 
+                      textarea.value.substring(endPos);
+      
+      // Move cursor after the inserted variable
+      textarea.selectionStart = textarea.selectionEnd = startPos + variable.length;
+      
+      // Focus back on textarea
+      textarea.focus();
+      
+      // Trigger input event to update character count and preview
+      const event = new Event('input', { bubbles: true });
+      textarea.dispatchEvent(event);
+    }
+    
+    // Format modifier insertion function
+    function insertModifier(textareaId, modifier) {
+      const textarea = document.getElementById(textareaId);
+      if (!textarea) return;
+      
+      // Get the selected text
+      const startPos = textarea.selectionStart;
+      const endPos = textarea.selectionEnd;
+      
+      // Check if there's any selection
+      if (startPos === endPos) {
+        // No selection, notify user
+        alert("Please select some text or a variable to apply the modifier.");
+        return;
+      }
+      
+      const selectedText = textarea.value.substring(startPos, endPos);
+      
+      // Check if selection is a variable or contains a variable
+      if (selectedText.includes('{{') && selectedText.includes('}}')) {
+        // Add modifier before the closing }}
+        const modifiedText = selectedText.replace(/}}(?=[^}]*$)/, modifier + '}}');
+        
+        // Replace the selected text with the modified version
+        textarea.value = textarea.value.substring(0, startPos) + modifiedText + textarea.value.substring(endPos);
+        
+        // Update selection to include the modification
+        textarea.selectionStart = startPos;
+        textarea.selectionEnd = startPos + modifiedText.length;
+      } else {
+        // Wrap selected text in {{ }} with modifier
+        const modifiedText = '{{' + selectedText + modifier + '}}';
+        
+        // Replace the selected text with the modified version
+        textarea.value = textarea.value.substring(0, startPos) + modifiedText + textarea.value.substring(endPos);
+        
+        // Update selection to include the modification
+        textarea.selectionStart = startPos;
+        textarea.selectionEnd = startPos + modifiedText.length;
+      }
+      
+      // Focus back on textarea
+      textarea.focus();
+      
+      // Trigger input event to update character count and preview
+      const event = new Event('input', { bubbles: true });
+      textarea.dispatchEvent(event);
+    }
+  </script>
+</body>
+</html>

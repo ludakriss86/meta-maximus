@@ -1,0 +1,78 @@
+[2025-05-07T13:15:39.799Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:15:40.040Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":246}
+[2025-05-07T13:15:53.808Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:15:54.022Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":219}
+[2025-05-07T13:16:09.275Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:16:09.518Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":248}
+[2025-05-07T13:16:17.151Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:16:17.398Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":252}
+[2025-05-07T13:16:58.150Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:16:58.368Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":223}
+[2025-05-07T13:17:01.579Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:17:01.805Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":231}
+[2025-05-07T13:17:29.212Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:17:29.437Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":230}
+[2025-05-07T13:17:29.438Z] [INFO] Initializing database collections and indexes...
+[2025-05-07T13:17:29.452Z] [INFO] Applying validation schemas to collections...
+[2025-05-07T13:17:29.469Z] [INFO] Applied validation schema to collection: templates
+[2025-05-07T13:17:29.485Z] [INFO] Applied validation schema to collection: customTemplates
+[2025-05-07T13:17:29.503Z] [INFO] Applied validation schema to collection: scheduledChanges
+[2025-05-07T13:17:29.519Z] [INFO] Applied validation schema to collection: customRules
+[2025-05-07T13:17:29.535Z] [INFO] Applied validation schema to collection: sessions
+[2025-05-07T13:17:29.535Z] [INFO] Finished applying validation schemas
+[2025-05-07T13:17:29.535Z] [INFO] Collections initialization completed successfully
+[2025-05-07T13:17:35.948Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:17:36.186Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":242}
+[2025-05-07T13:17:36.187Z] [INFO] Initializing database collections and indexes...
+[2025-05-07T13:17:36.202Z] [INFO] Applying validation schemas to collections...
+[2025-05-07T13:17:36.220Z] [INFO] Applied validation schema to collection: templates
+[2025-05-07T13:17:36.237Z] [INFO] Applied validation schema to collection: customTemplates
+[2025-05-07T13:17:36.254Z] [INFO] Applied validation schema to collection: scheduledChanges
+[2025-05-07T13:17:36.272Z] [INFO] Applied validation schema to collection: customRules
+[2025-05-07T13:17:36.288Z] [INFO] Applied validation schema to collection: sessions
+[2025-05-07T13:17:36.289Z] [INFO] Finished applying validation schemas
+[2025-05-07T13:17:36.289Z] [INFO] Collections initialization completed successfully
+[2025-05-07T13:17:51.228Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:17:51.454Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":231}
+[2025-05-07T13:17:51.455Z] [INFO] Initializing database collections and indexes...
+[2025-05-07T13:17:51.471Z] [INFO] Applying validation schemas to collections...
+[2025-05-07T13:17:51.488Z] [INFO] Applied validation schema to collection: templates
+[2025-05-07T13:17:51.505Z] [INFO] Applied validation schema to collection: customTemplates
+[2025-05-07T13:17:51.522Z] [INFO] Applied validation schema to collection: scheduledChanges
+[2025-05-07T13:17:51.538Z] [INFO] Applied validation schema to collection: customRules
+[2025-05-07T13:17:51.554Z] [INFO] Applied validation schema to collection: sessions
+[2025-05-07T13:17:51.555Z] [INFO] Finished applying validation schemas
+[2025-05-07T13:17:51.555Z] [INFO] Collections initialization completed successfully
+[2025-05-07T13:18:48.950Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:18:49.183Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":238}
+[2025-05-07T13:18:49.184Z] [INFO] Initializing database collections and indexes...
+[2025-05-07T13:18:49.200Z] [INFO] Applying validation schemas to collections...
+[2025-05-07T13:18:49.218Z] [INFO] Applied validation schema to collection: templates
+[2025-05-07T13:18:49.233Z] [INFO] Applied validation schema to collection: customTemplates
+[2025-05-07T13:18:49.250Z] [INFO] Applied validation schema to collection: scheduledChanges
+[2025-05-07T13:18:49.267Z] [INFO] Applied validation schema to collection: customRules
+[2025-05-07T13:18:49.284Z] [INFO] Applied validation schema to collection: sessions
+[2025-05-07T13:18:49.284Z] [INFO] Finished applying validation schemas
+[2025-05-07T13:18:49.284Z] [INFO] Collections initialization completed successfully
+[2025-05-07T13:19:31.322Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:19:31.542Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":225}
+[2025-05-07T13:19:31.543Z] [INFO] Initializing database collections and indexes...
+[2025-05-07T13:19:31.560Z] [INFO] Applying validation schemas to collections...
+[2025-05-07T13:19:31.577Z] [INFO] Applied validation schema to collection: templates
+[2025-05-07T13:19:31.594Z] [INFO] Applied validation schema to collection: customTemplates
+[2025-05-07T13:19:31.609Z] [INFO] Applied validation schema to collection: scheduledChanges
+[2025-05-07T13:19:31.626Z] [INFO] Applied validation schema to collection: customRules
+[2025-05-07T13:19:31.641Z] [INFO] Applied validation schema to collection: sessions
+[2025-05-07T13:19:31.642Z] [INFO] Finished applying validation schemas
+[2025-05-07T13:19:31.642Z] [INFO] Collections initialization completed successfully
+[2025-05-07T13:19:40.055Z] [INFO] Establishing MongoDB connection... {"database":"meta-maximus"}
+[2025-05-07T13:19:40.278Z] [INFO] Connected to MongoDB {"database":"meta-maximus","durationMs":228}
+[2025-05-07T13:19:40.279Z] [INFO] Initializing database collections and indexes...
+[2025-05-07T13:19:40.295Z] [INFO] Applying validation schemas to collections...
+[2025-05-07T13:19:40.311Z] [INFO] Applied validation schema to collection: templates
+[2025-05-07T13:19:40.328Z] [INFO] Applied validation schema to collection: customTemplates
+[2025-05-07T13:19:40.345Z] [INFO] Applied validation schema to collection: scheduledChanges
+[2025-05-07T13:19:40.361Z] [INFO] Applied validation schema to collection: customRules
+[2025-05-07T13:19:40.377Z] [INFO] Applied validation schema to collection: sessions
+[2025-05-07T13:19:40.378Z] [INFO] Finished applying validation schemas
+[2025-05-07T13:19:40.378Z] [INFO] Collections initialization completed successfully

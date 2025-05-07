@@ -73,18 +73,9 @@ app.get('/auth/callback', async (req, res) => {
       rawResponse: res,
     });
     
-    // Store session in MongoDB
-    try {
-      const database = require('../src/services/database');
-      await database.storeSession(session);
-      console.log('Session stored in MongoDB successfully');
-    } catch (dbError) {
-      console.error('Error storing session in MongoDB:', dbError);
-      // Fall back to in-memory storage
-      const sessionKey = `${session.shop}_${session.isOnline ? 'online' : 'offline'}`;
-      SESSION_STORAGE.set(sessionKey, session);
-      console.log('Session stored in memory as fallback');
-    }
+    // Store session
+    const sessionKey = `${session.shop}_${session.isOnline ? 'online' : 'offline'}`;
+    SESSION_STORAGE.set(sessionKey, session);
     
     // Clean up nonce
     res.clearCookie('shopify_nonce');
@@ -110,35 +101,12 @@ app.use('/api', async (req, res, next) => {
     return res.status(400).json({ error: 'Missing shop parameter' });
   }
   
-  let session;
-  
-  // Try to load from MongoDB
-  try {
-    const database = require('../src/services/database');
-    session = await database.loadSession(shop);
-    
-    if (session) {
-      console.log('Loaded session from MongoDB');
-    }
-  } catch (dbError) {
-    console.error('Error loading session from MongoDB:', dbError);
-  }
-  
-  // Fall back to in-memory storage if not found in MongoDB
-  if (!session) {
-    const sessionKey = `${shop}_offline`;
-    session = SESSION_STORAGE.get(sessionKey);
-    
-    if (session) {
-      console.log('Found session in memory storage');
-    }
-  }
+  // Check if we have a session for this shop
+  const sessionKey = `${shop}_offline`;
+  const session = SESSION_STORAGE.get(sessionKey);
   
   if (!session) {
-    return res.status(401).json({ 
-      error: 'Unauthorized', 
-      redirect: `/auth?shop=${encodeURIComponent(shop)}`
-    });
+    return res.status(401).json({ error: 'Unauthorized' });
   }
   
   // Set session for API routes
@@ -290,70 +258,6 @@ const dashboardHTML = `
       margin: 0;
       color: #637381;
       font-size: 14px;
-    }
-  
-    /* Badge-style variable buttons */
-    .variable-buttons {
-      margin: 4px 0 6px 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-    
-    /* Badge-style buttons */
-    .badge-button {
-      padding: 2px 8px;
-      font-size: 12px;
-      font-weight: 500;
-      border: none;
-      border-radius: 12px; /* Fully rounded corners */
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    /* Regular variables */
-    .badge-button.var {
-      background-color: #e0e5f0;
-      color: #5c6ac4;
-    }
-    .badge-button.var:hover {
-      background-color: #c9cfe0;
-    }
-    
-    /* Primary variables */
-    .badge-button.primary {
-      background-color: #eaf5fe;
-      color: #007ace;
-    }
-    .badge-button.primary:hover {
-      background-color: #b4dbf7;
-    }
-    
-    /* Conditional logic */
-    .badge-button.conditional {
-      background-color: #e3f1df;
-      color: #108043;
-    }
-    .badge-button.conditional:hover {
-      background-color: #bbe5b3;
-    }
-    
-    /* Format modifiers */
-    .badge-button.format {
-      background-color: #f6f0fd;
-      color: #9c6ade;
-    }
-    .badge-button.format:hover {
-      background-color: #e3d0ff;
-    }
-    
-    /* Discount variables */
-    .badge-button.discount {
-      background-color: #fdf6e3;
-      color: #daa520;
-    }
-    .badge-button.discount:hover {
-      background-color: #f9e9c0;
     }
   </style>
 </head>
@@ -629,70 +533,6 @@ const templatesHTML = `
       font-size: 14px;
       line-height: 1.4;
     }
-  
-    /* Badge-style variable buttons */
-    .variable-buttons {
-      margin: 4px 0 6px 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-    
-    /* Badge-style buttons */
-    .badge-button {
-      padding: 2px 8px;
-      font-size: 12px;
-      font-weight: 500;
-      border: none;
-      border-radius: 12px; /* Fully rounded corners */
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    /* Regular variables */
-    .badge-button.var {
-      background-color: #e0e5f0;
-      color: #5c6ac4;
-    }
-    .badge-button.var:hover {
-      background-color: #c9cfe0;
-    }
-    
-    /* Primary variables */
-    .badge-button.primary {
-      background-color: #eaf5fe;
-      color: #007ace;
-    }
-    .badge-button.primary:hover {
-      background-color: #b4dbf7;
-    }
-    
-    /* Conditional logic */
-    .badge-button.conditional {
-      background-color: #e3f1df;
-      color: #108043;
-    }
-    .badge-button.conditional:hover {
-      background-color: #bbe5b3;
-    }
-    
-    /* Format modifiers */
-    .badge-button.format {
-      background-color: #f6f0fd;
-      color: #9c6ade;
-    }
-    .badge-button.format:hover {
-      background-color: #e3d0ff;
-    }
-    
-    /* Discount variables */
-    .badge-button.discount {
-      background-color: #fdf6e3;
-      color: #daa520;
-    }
-    .badge-button.discount:hover {
-      background-color: #f9e9c0;
-    }
   </style>
 </head>
 <body>
@@ -726,27 +566,6 @@ const templatesHTML = `
       
         <div>
           <label for="collectionTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-          <!-- Common variables -->
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{shopifyTitle}}')">DEFAULT</button>
-          <button type="button" class="badge-button var" onclick="insertVariable('homeDescription', '{{shopifyDescription}}')">DEFAULT</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{year}}')">YEAR</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{month}}')">MONTH</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{season}}')">SEASON</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{storeName}}')">STORE</button>
-          <!-- Conditionals -->
-          <button type="button" class="badge-button conditional" onclick="insertVariable('homeDescription', '{{if hasDiscount}}')">IF DISCOUNT</button>
-          <button type="button" class="badge-button conditional" onclick="insertVariable('homeDescription', '{{else}}')">ELSE</button>
-          <button type="button" class="badge-button conditional" onclick="insertVariable('homeDescription', '{{endif}}')">ENDIF</button>
-          <!-- Special variables -->
-          <button type="button" class="badge-button var" onclick="insertVariable('homeDescription', '{{maxDiscountPercentage}}')">DISCOUNT%</button>
-          
-          <!-- Format modifiers -->
-          <button type="button" class="badge-button format" onclick="insertModifier('homeDescription', ':initialCaps')">INITIAL CAPS</button>
-          <button type="button" class="badge-button format" onclick="insertModifier('homeDescription', ':uppercase')">UPPER</button>
-          <button type="button" class="badge-button format" onclick="insertModifier('homeDescription', ':lowercase')">LOWER</button>
-        </div>
           <input type="text" id="collectionTitle" value="{{collectionTitle}} - {{season}} {{year}} Collection | Your Store" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
           <div class="character-count">
             <span id="collectionTitleCount">0</span> characters 
@@ -756,64 +575,11 @@ const templatesHTML = `
         </div>
         <div>
           <label for="collectionDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{shopifyTitle}}')">DEFAULT</button>
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('collectionDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('collectionDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionTitle', ':initialCaps')">INITIAL CAPS</button>
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('collectionDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('collectionDescription', '{{discountRange}}')">RANGE</button>
-          </div>
           <textarea id="collectionDescription">Explore our {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on selected items!{{else}}New arrivals now available.{{endif}}</textarea>
           <div class="character-count">
             <span id="collectionDescriptionCount">0</span> characters 
             <span class="badge" id="collectionDescriptionBadge">checking...</span>
             <span id="collectionDescriptionAdvice"></span>
-          </div>
-          
-          <!-- Variable Buttons -->
-          <div style="margin: 15px 0; border: 1px solid #ddd; padding: 15px; border-radius: 5px; background-color: #f9f9f9;">
-            <h3 style="margin-top: 0; color: #5c6ac4;">Quick Insert Variables:</h3>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertVariable('collectionDescription', '{{year}}')">YEAR</button>
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertVariable('collectionDescription', '{{month}}')">MONTH</button>
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertVariable('collectionDescription', '{{season}}')">SEASON</button>
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertVariable('collectionDescription', '{{date}}')">DATE</button>
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertVariable('collectionDescription', '{{productTitle}}')">PRODUCT</button>
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertVariable('collectionDescription', '{{collectionTitle}}')">COLLECTION</button>
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertVariable('collectionDescription', '{{storeName}}')">STORE</button>
-            </div>
-            
-            <h3 style="margin-top: 0; color: #5c6ac4;">Conditional Logic:</h3>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertVariable('collectionDescription', '{{if hasDiscount}}...{{endif}}')">IF DISCOUNT</button>
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertVariable('collectionDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            </div>
-            
-            <h3 style="margin-top: 0; color: #5c6ac4;">Format Modifiers:</h3>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertModifier('collectionDescription', ':uppercase')">UPPERCASE</button>
-              <button type="button" style="padding: 5px 10px; background-color: #5c6ac4; color: white; border: none; border-radius: 4px;" onclick="insertModifier('collectionDescription', ':lowercase')">LOWERCASE</button>
-            </div>
           </div>
         </div>
         <div style="margin-top: 15px;">
@@ -841,30 +607,6 @@ const templatesHTML = `
       
         <div>
           <label for="productTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{shopifyTitle}}')">DEFAULT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{shopifyDescription}}')">DEFAULT</button>
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('productTitle', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('productTitle', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('productTitle', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('productTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('productTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionDescription', ':initialCaps')">INITIAL CAPS</button>
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('productTitle', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('productTitle', ':lowercase')">LOWER</button>
-          </div>
           <input type="text" id="productTitle" value="{{productTitle}} - {{season}} {{year}} | Your Store" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
           <div class="character-count">
             <span id="productTitleCount">0</span> characters 
@@ -874,34 +616,6 @@ const templatesHTML = `
         </div>
         <div>
           <label for="productDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{shopifyDescription}}')">DEFAULT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{shopifyTitle}}')">DEFAULT</button>
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('productDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('productDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('productDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('productDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('productDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('productTitle', ':initialCaps')">INITIAL CAPS</button>
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('productDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('productDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('productDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('productDescription', '{{discountRange}}')">RANGE</button>
-          </div>
           <textarea id="productDescription">Shop our premium {{productTitle}} for {{season}} {{year}}. {{if hasDiscount}}Now on sale with {{maxDiscountPercentage}} off!{{endif}}</textarea>
           <div class="character-count">
             <span id="productDescriptionCount">0</span> characters 
@@ -1192,71 +906,7 @@ const collectionsHTML = `
     .badge.bad {
       background: #ffd2d2;
       color: #bf0711;
-    }
-    /* Badge-style variable buttons */
-    .variable-buttons {
-      margin: 4px 0 6px 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-    
-    /* Badge-style buttons */
-    .badge-button {
-      padding: 2px 8px;
-      font-size: 12px;
-      font-weight: 500;
-      border: none;
-      border-radius: 12px; /* Fully rounded corners */
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    /* Regular variables */
-    .badge-button.var {
-      background-color: #e0e5f0;
-      color: #5c6ac4;
-    }
-    .badge-button.var:hover {
-      background-color: #c9cfe0;
-    }
-    
-    /* Primary variables */
-    .badge-button.primary {
-      background-color: #eaf5fe;
-      color: #007ace;
-    }
-    .badge-button.primary:hover {
-      background-color: #b4dbf7;
-    }
-    
-    /* Conditional logic */
-    .badge-button.conditional {
-      background-color: #e3f1df;
-      color: #108043;
-    }
-    .badge-button.conditional:hover {
-      background-color: #bbe5b3;
-    }
-    
-    /* Format modifiers */
-    .badge-button.format {
-      background-color: #f6f0fd;
-      color: #9c6ade;
-    }
-    .badge-button.format:hover {
-      background-color: #e3d0ff;
-    }
-    
-    /* Discount variables */
-    .badge-button.discount {
-      background-color: #fdf6e3;
-      color: #daa520;
-    }
-    .badge-button.discount:hover {
-      background-color: #f9e9c0;
-    }
-  </style>
+    }</style>
 </head>
 <body>
   <div class="container">
@@ -1280,30 +930,6 @@ const collectionsHTML = `
       
       <div>
         <label for="collectionTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{shopifyTitle}}')">DEFAULT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{shopifyDescription}}')">DEFAULT</button>
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionTitle', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionTitle', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionTitle', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionTitle', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('collectionTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('collectionTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('productDescription', ':initialCaps')">INITIAL CAPS</button>
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionTitle', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionTitle', ':lowercase')">LOWER</button>
-          </div>
         <input type="text" id="collectionTitle" value="{{collectionTitle}} - {{season}} {{year}} Collection | {{storeName}}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
         <div class="character-count">
           <span id="collectionTitleCount">56</span> characters 
@@ -1313,30 +939,6 @@ const collectionsHTML = `
       
       <div>
         <label for="collectionDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{shopifyDescription}}')">DEFAULT</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('collectionDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('collectionDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('collectionDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('collectionDescription', '{{discountRange}}')">RANGE</button>
-          </div>
         <textarea id="collectionDescription">Explore our {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on selected items!{{else}}New arrivals now available.{{endif}}</textarea>
         <div class="character-count">
           <span id="collectionDescriptionCount">125</span> characters 
@@ -1532,53 +1134,11 @@ const collectionsHTML = `
         
         <div>
           <label for="editTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('editTitle', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('editTitle', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('editTitle', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editTitle', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editTitle', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editTitle', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editTitle', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('editTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('editTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('editTitle', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('editTitle', ':lowercase')">LOWER</button>
-          </div>
           <input type="text" id="editTitle" value="{{collectionTitle}} - {{season}} {{year}} Collection | Your Store" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
         </div>
         
         <div>
           <label for="editDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('editDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('editDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('editDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('editDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('editDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('editDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('editDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('editDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('editDescription', '{{discountRange}}')">RANGE</button>
-          </div>
           <textarea id="editDescription">Explore our {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on selected items!{{else}}New arrivals now available.{{endif}}</textarea>
         </div>
         
@@ -1623,53 +1183,11 @@ const collectionsHTML = `
       <form id="scheduleForm">
         <div>
           <label for="scheduleTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleTitle', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleTitle', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleTitle', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleTitle', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleTitle', ':lowercase')">LOWER</button>
-          </div>
           <input type="text" id="scheduleTitle" value="{{collectionTitle}} - {{season}} {{year}} Collection | {{storeName}}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
         </div>
         
         <div>
           <label for="scheduleDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('scheduleDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('scheduleDescription', '{{discountRange}}')">RANGE</button>
-          </div>
           <textarea id="scheduleDescription">Explore our {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on selected items!{{else}}New arrivals now available.{{endif}}</textarea>
         </div>
         
@@ -1734,53 +1252,11 @@ const collectionsHTML = `
         
         <div>
           <label for="collectionRuleTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionRuleTitle', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionRuleTitle', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionRuleTitle', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionRuleTitle', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionRuleTitle', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionRuleTitle', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionRuleTitle', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('collectionRuleTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('collectionRuleTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionRuleTitle', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionRuleTitle', ':lowercase')">LOWER</button>
-          </div>
           <input type="text" id="collectionRuleTitle" value="{{collectionTitle}} - SPECIAL {{season}} {{year}} | {{storeName}}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
         </div>
         
         <div>
           <label for="collectionRuleDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionRuleDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionRuleDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('collectionRuleDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionRuleDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionRuleDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionRuleDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('collectionRuleDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('collectionRuleDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('collectionRuleDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionRuleDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('collectionRuleDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('collectionRuleDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('collectionRuleDescription', '{{discountRange}}')">RANGE</button>
-          </div>
           <textarea id="collectionRuleDescription">Explore our special {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on these exclusive items!{{endif}}</textarea>
         </div>
         
@@ -2028,72 +1504,6 @@ const collectionsHTML = `
         scheduleModal.style.display = 'none';
       }
     }
-  
-    // Variable insertion functions
-    function insertVariable(textareaId, variable) {
-      const textarea = document.getElementById(textareaId);
-      if (!textarea) return;
-      
-      // Get cursor position
-      const startPos = textarea.selectionStart;
-      const endPos = textarea.selectionEnd;
-      
-      // Insert variable at cursor position
-      textarea.value = textarea.value.substring(0, startPos) + 
-                       variable + 
-                       textarea.value.substring(endPos);
-      
-      // Move cursor after the inserted variable
-      textarea.selectionStart = textarea.selectionEnd = startPos + variable.length;
-      
-      // Focus back on textarea
-      textarea.focus();
-      
-      // Trigger input event to update character count if needed
-      const event = new Event('input', { bubbles: true });
-      textarea.dispatchEvent(event);
-    }
-    
-    function insertModifier(textareaId, modifier) {
-      const textarea = document.getElementById(textareaId);
-      if (!textarea) return;
-      
-      // Get cursor position
-      const startPos = textarea.selectionStart;
-      const endPos = textarea.selectionEnd;
-      const beforeCursor = textarea.value.substring(0, startPos);
-      
-      // Check if there's a variable pattern before cursor
-      const variablePattern = /\{\{([^}]+)\}\}/;
-      const match = beforeCursor.match(variablePattern);
-      
-      if (match && match.index !== -1) {
-        // Find the position right after the last variable closing }}
-        const variableEndPos = beforeCursor.lastIndexOf('}}');
-        if (variableEndPos !== -1 && variableEndPos === startPos - 2) {
-          // Insert modifier right after the variable
-          textarea.value = textarea.value.substring(0, variableEndPos) + 
-                           modifier +
-                           textarea.value.substring(variableEndPos, textarea.value.length);
-          textarea.selectionStart = textarea.selectionEnd = variableEndPos + modifier.length + 2;
-        } else {
-          // Just insert at cursor if we're not right after a variable
-          textarea.value = beforeCursor + modifier + textarea.value.substring(endPos);
-          textarea.selectionStart = textarea.selectionEnd = startPos + modifier.length;
-        }
-      } else {
-        // Just insert at cursor if no variable pattern found
-        textarea.value = beforeCursor + modifier + textarea.value.substring(endPos);
-        textarea.selectionStart = textarea.selectionEnd = startPos + modifier.length;
-      }
-      
-      // Focus back on textarea
-      textarea.focus();
-      
-      // Trigger input event to update character count if needed
-      const event = new Event('input', { bubbles: true });
-      textarea.dispatchEvent(event);
-    }
   </script>
 </body>
 </html>
@@ -2291,71 +1701,7 @@ const productsHTML = `
     .badge.bad {
       background: #ffd2d2;
       color: #bf0711;
-    }
-    /* Badge-style variable buttons */
-    .variable-buttons {
-      margin: 4px 0 6px 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-    
-    /* Badge-style buttons */
-    .badge-button {
-      padding: 2px 8px;
-      font-size: 12px;
-      font-weight: 500;
-      border: none;
-      border-radius: 12px; /* Fully rounded corners */
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    /* Regular variables */
-    .badge-button.var {
-      background-color: #e0e5f0;
-      color: #5c6ac4;
-    }
-    .badge-button.var:hover {
-      background-color: #c9cfe0;
-    }
-    
-    /* Primary variables */
-    .badge-button.primary {
-      background-color: #eaf5fe;
-      color: #007ace;
-    }
-    .badge-button.primary:hover {
-      background-color: #b4dbf7;
-    }
-    
-    /* Conditional logic */
-    .badge-button.conditional {
-      background-color: #e3f1df;
-      color: #108043;
-    }
-    .badge-button.conditional:hover {
-      background-color: #bbe5b3;
-    }
-    
-    /* Format modifiers */
-    .badge-button.format {
-      background-color: #f6f0fd;
-      color: #9c6ade;
-    }
-    .badge-button.format:hover {
-      background-color: #e3d0ff;
-    }
-    
-    /* Discount variables */
-    .badge-button.discount {
-      background-color: #fdf6e3;
-      color: #daa520;
-    }
-    .badge-button.discount:hover {
-      background-color: #f9e9c0;
-    }
-  </style>
+    }</style>
 </head>
 <body>
   <div class="container">
@@ -2379,25 +1725,6 @@ const productsHTML = `
       
       <div>
         <label for="productTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('productTitle', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('productTitle', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('productTitle', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productTitle', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('productTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('productTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('productTitle', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('productTitle', ':lowercase')">LOWER</button>
-          </div>
         <input type="text" id="productTitle" value="{{productTitle}} - {{season}} {{year}} | {{storeName}}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
         <div class="character-count">
           <span id="productTitleCount">46</span> characters 
@@ -2407,29 +1734,6 @@ const productsHTML = `
       
       <div>
         <label for="productDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('productDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('productDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('productDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('productDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('productDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('productDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('productDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('productDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('productDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('productDescription', '{{discountRange}}')">RANGE</button>
-          </div>
         <textarea id="productDescription">Shop our premium {{productTitle}} for {{season}} {{year}}. {{if hasDiscount}}Now on sale with {{maxDiscountPercentage}} off!{{else}}High-quality product from {{productVendor}}.{{endif}}</textarea>
         <div class="character-count">
           <span id="productDescriptionCount">135</span> characters 
@@ -2623,53 +1927,11 @@ const productsHTML = `
         
         <div>
           <label for="editTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('editTitle', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('editTitle', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('editTitle', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editTitle', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editTitle', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editTitle', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editTitle', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('editTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('editTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('editTitle', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('editTitle', ':lowercase')">LOWER</button>
-          </div>
           <input type="text" id="editTitle" value="{{productTitle}} - {{season}} {{year}} | Your Store" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
         </div>
         
         <div>
           <label for="editDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('editDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('editDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('editDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('editDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('editDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('editDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('editDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('editDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('editDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('editDescription', '{{discountRange}}')">RANGE</button>
-          </div>
           <textarea id="editDescription">Shop our premium {{productTitle}} for {{season}} {{year}}. {{if hasDiscount}}Now on sale with {{discountPercentage}} off!{{else}}High-quality product from {{productVendor}}.{{endif}}</textarea>
         </div>
         
@@ -2714,53 +1976,11 @@ const productsHTML = `
       <form id="scheduleForm">
         <div>
           <label for="scheduleTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleTitle', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleTitle', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleTitle', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleTitle', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleTitle', ':lowercase')">LOWER</button>
-          </div>
           <input type="text" id="scheduleTitle" value="{{productTitle}} - SALE {{season}} {{year}} | Your Store" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
         </div>
         
         <div>
           <label for="scheduleDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('scheduleDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('scheduleDescription', '{{discountRange}}')">RANGE</button>
-          </div>
           <textarea id="scheduleDescription">Limited time offer! Shop our premium {{productTitle}} for {{season}} {{year}}. Save {{discountPercentage}} for a limited time only!</textarea>
         </div>
         
@@ -2839,53 +2059,11 @@ const productsHTML = `
         
         <div>
           <label for="ruleTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('ruleTitle', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('ruleTitle', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('ruleTitle', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('ruleTitle', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('ruleTitle', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('ruleTitle', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('ruleTitle', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('ruleTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('ruleTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('ruleTitle', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('ruleTitle', ':lowercase')">LOWER</button>
-          </div>
           <input type="text" id="ruleTitle" value="{{productTitle}} - SPECIAL {{season}} {{year}} | {{storeName}}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
         </div>
         
         <div>
           <label for="ruleDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('ruleDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('ruleDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('ruleDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('ruleDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('ruleDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('ruleDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('ruleDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('ruleDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('ruleDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('ruleDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('ruleDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('ruleDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('ruleDescription', '{{discountRange}}')">RANGE</button>
-          </div>
           <textarea id="ruleDescription">Check out our {{productTitle}} - part of our special collection for {{season}} {{year}}. {{if hasDiscount}}Now {{discountPercentage}} off!{{endif}}</textarea>
         </div>
         
@@ -3130,72 +2308,6 @@ const productsHTML = `
       } else if (event.target == scheduleModal) {
         scheduleModal.style.display = 'none';
       }
-    }
-  
-    // Variable insertion functions
-    function insertVariable(textareaId, variable) {
-      const textarea = document.getElementById(textareaId);
-      if (!textarea) return;
-      
-      // Get cursor position
-      const startPos = textarea.selectionStart;
-      const endPos = textarea.selectionEnd;
-      
-      // Insert variable at cursor position
-      textarea.value = textarea.value.substring(0, startPos) + 
-                       variable + 
-                       textarea.value.substring(endPos);
-      
-      // Move cursor after the inserted variable
-      textarea.selectionStart = textarea.selectionEnd = startPos + variable.length;
-      
-      // Focus back on textarea
-      textarea.focus();
-      
-      // Trigger input event to update character count if needed
-      const event = new Event('input', { bubbles: true });
-      textarea.dispatchEvent(event);
-    }
-    
-    function insertModifier(textareaId, modifier) {
-      const textarea = document.getElementById(textareaId);
-      if (!textarea) return;
-      
-      // Get cursor position
-      const startPos = textarea.selectionStart;
-      const endPos = textarea.selectionEnd;
-      const beforeCursor = textarea.value.substring(0, startPos);
-      
-      // Check if there's a variable pattern before cursor
-      const variablePattern = /\{\{([^}]+)\}\}/;
-      const match = beforeCursor.match(variablePattern);
-      
-      if (match && match.index !== -1) {
-        // Find the position right after the last variable closing }}
-        const variableEndPos = beforeCursor.lastIndexOf('}}');
-        if (variableEndPos !== -1 && variableEndPos === startPos - 2) {
-          // Insert modifier right after the variable
-          textarea.value = textarea.value.substring(0, variableEndPos) + 
-                           modifier +
-                           textarea.value.substring(variableEndPos, textarea.value.length);
-          textarea.selectionStart = textarea.selectionEnd = variableEndPos + modifier.length + 2;
-        } else {
-          // Just insert at cursor if we're not right after a variable
-          textarea.value = beforeCursor + modifier + textarea.value.substring(endPos);
-          textarea.selectionStart = textarea.selectionEnd = startPos + modifier.length;
-        }
-      } else {
-        // Just insert at cursor if no variable pattern found
-        textarea.value = beforeCursor + modifier + textarea.value.substring(endPos);
-        textarea.selectionStart = textarea.selectionEnd = startPos + modifier.length;
-      }
-      
-      // Focus back on textarea
-      textarea.focus();
-      
-      // Trigger input event to update character count if needed
-      const event = new Event('input', { bubbles: true });
-      textarea.dispatchEvent(event);
     }
   </script>
 </body>
@@ -3443,70 +2555,6 @@ const homepageHTML = `
       border: 1px solid #ddd;
       margin-bottom: 15px;
     }
-  
-    /* Badge-style variable buttons */
-    .variable-buttons {
-      margin: 4px 0 6px 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-    
-    /* Badge-style buttons */
-    .badge-button {
-      padding: 2px 8px;
-      font-size: 12px;
-      font-weight: 500;
-      border: none;
-      border-radius: 12px; /* Fully rounded corners */
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    /* Regular variables */
-    .badge-button.var {
-      background-color: #e0e5f0;
-      color: #5c6ac4;
-    }
-    .badge-button.var:hover {
-      background-color: #c9cfe0;
-    }
-    
-    /* Primary variables */
-    .badge-button.primary {
-      background-color: #eaf5fe;
-      color: #007ace;
-    }
-    .badge-button.primary:hover {
-      background-color: #b4dbf7;
-    }
-    
-    /* Conditional logic */
-    .badge-button.conditional {
-      background-color: #e3f1df;
-      color: #108043;
-    }
-    .badge-button.conditional:hover {
-      background-color: #bbe5b3;
-    }
-    
-    /* Format modifiers */
-    .badge-button.format {
-      background-color: #f6f0fd;
-      color: #9c6ade;
-    }
-    .badge-button.format:hover {
-      background-color: #e3d0ff;
-    }
-    
-    /* Discount variables */
-    .badge-button.discount {
-      background-color: #fdf6e3;
-      color: #daa520;
-    }
-    .badge-button.discount:hover {
-      background-color: #f9e9c0;
-    }
   </style>
 </head>
 <body>
@@ -3531,25 +2579,7 @@ const homepageHTML = `
       
       <div>
         <label for="homeTitle">Meta Title Template</label>
-        <div class="variable-buttons">
-          <!-- Common variables -->
-          <button type="button" class="badge-button var" onclick="insertVariable('homeTitle', '{{shopifyTitle}}')">DEFAULT</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeTitle', '{{year}}')">YEAR</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeTitle', '{{month}}')">MONTH</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeTitle', '{{season}}')">SEASON</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeTitle', '{{storeName}}')">STORE</button>
-          <!-- Conditionals -->
-          <button type="button" class="badge-button conditional" onclick="insertVariable('homeTitle', '{{if condition}}')">IF</button>
-          <button type="button" class="badge-button conditional" onclick="insertVariable('homeTitle', '{{else}}')">ELSE</button>
-          <button type="button" class="badge-button conditional" onclick="insertVariable('homeTitle', '{{endif}}')">ENDIF</button>
-          
-          <!-- Format modifiers -->
-          <button type="button" class="badge-button format" onclick="insertModifier('homeTitle', ':initialCaps')">INITIAL CAPS</button>
-          <button type="button" class="badge-button format" onclick="insertModifier('homeTitle', ':uppercase')">UPPER</button>
-          <button type="button" class="badge-button format" onclick="insertModifier('homeTitle', ':lowercase')">LOWER</button>
-        </div>
         <input type="text" id="homeTitle" value="{{storeName}} - {{season}} {{year}} Collection" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
-        
         <div class="character-count">
           <span id="homeTitleCount">43</span> characters 
           <span class="badge good">Good length</span>
@@ -3558,27 +2588,7 @@ const homepageHTML = `
       
       <div>
         <label for="homeDescription">Meta Description Template</label>
-        <div class="variable-buttons">
-          <!-- Common variables -->
-          <button type="button" class="badge-button var" onclick="insertVariable('homeDescription', '{{shopifyDescription}}')">DEFAULT</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{year}}')">YEAR</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{month}}')">MONTH</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{season}}')">SEASON</button>
-          <button type="button" class="badge-button primary" onclick="insertVariable('homeDescription', '{{storeName}}')">STORE</button>
-          <!-- Conditionals -->
-          <button type="button" class="badge-button conditional" onclick="insertVariable('homeDescription', '{{if hasDiscount}}')">IF DISCOUNT</button>
-          <button type="button" class="badge-button conditional" onclick="insertVariable('homeDescription', '{{else}}')">ELSE</button>
-          <button type="button" class="badge-button conditional" onclick="insertVariable('homeDescription', '{{endif}}')">ENDIF</button>
-          <!-- Special variables -->
-          <button type="button" class="badge-button var" onclick="insertVariable('homeDescription', '{{maxDiscountPercentage}}')">DISCOUNT%</button>
-          
-          <!-- Format modifiers -->
-          <button type="button" class="badge-button format" onclick="insertModifier('homeDescription', ':initialCaps')">INITIAL CAPS</button>
-          <button type="button" class="badge-button format" onclick="insertModifier('homeDescription', ':uppercase')">UPPER</button>
-          <button type="button" class="badge-button format" onclick="insertModifier('homeDescription', ':lowercase')">LOWER</button>
-        </div>
         <textarea id="homeDescription">Shop our collection of quality products. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} off with our current sale!{{else}}New items added regularly.{{endif}}</textarea>
-        
         <div class="character-count">
           <span id="homeDescriptionCount">110</span> characters 
           <span class="badge good">Good length</span>
@@ -3956,121 +2966,7 @@ const homepageHTML = `
         }
       });
     });
-  
-    // Variable insertion functions
-    function insertVariable(textareaId, variable) {
-      const textarea = document.getElementById(textareaId);
-      if (!textarea) return;
-      
-      // Get cursor position
-      const startPos = textarea.selectionStart;
-      const endPos = textarea.selectionEnd;
-      
-      // Insert variable at cursor position
-      textarea.value = textarea.value.substring(0, startPos) + 
-                       variable + 
-                       textarea.value.substring(endPos);
-      
-      // Move cursor after the inserted variable
-      textarea.selectionStart = textarea.selectionEnd = startPos + variable.length;
-      
-      // Focus back on textarea
-      textarea.focus();
-      
-      // Trigger input event to update character count if needed
-      const event = new Event('input', { bubbles: true });
-      textarea.dispatchEvent(event);
-    }
-    
-    function insertModifier(textareaId, modifier) {
-      const textarea = document.getElementById(textareaId);
-      if (!textarea) return;
-      
-      // Get cursor position
-      const startPos = textarea.selectionStart;
-      const endPos = textarea.selectionEnd;
-      const beforeCursor = textarea.value.substring(0, startPos);
-      
-      // Check if there's a variable pattern before cursor
-      const variablePattern = /\{\{([^}]+)\}\}/;
-      const match = beforeCursor.match(variablePattern);
-      
-      if (match && match.index !== -1) {
-        // Find the position right after the last variable closing }}
-        const variableEndPos = beforeCursor.lastIndexOf('}}');
-        if (variableEndPos !== -1 && variableEndPos === startPos - 2) {
-          // Insert modifier right after the variable
-          textarea.value = textarea.value.substring(0, variableEndPos) + 
-                           modifier +
-                           textarea.value.substring(variableEndPos, textarea.value.length);
-          textarea.selectionStart = textarea.selectionEnd = variableEndPos + modifier.length + 2;
-        } else {
-          // Just insert at cursor if we're not right after a variable
-          textarea.value = beforeCursor + modifier + textarea.value.substring(endPos);
-          textarea.selectionStart = textarea.selectionEnd = startPos + modifier.length;
-        }
-      } else {
-        // Just insert at cursor if no variable pattern found
-        textarea.value = beforeCursor + modifier + textarea.value.substring(endPos);
-        textarea.selectionStart = textarea.selectionEnd = startPos + modifier.length;
-      }
-      
-      // Focus back on textarea
-      textarea.focus();
-      
-      // Trigger input event to update character count if needed
-      const event = new Event('input', { bubbles: true });
-      textarea.dispatchEvent(event);
-    }
-  
-    // Format modifier insertion function
-    function insertModifier(textareaId, modifier) {
-      const textarea = document.getElementById(textareaId);
-      if (!textarea) return;
-      
-      // Get the selected text
-      const startPos = textarea.selectionStart;
-      const endPos = textarea.selectionEnd;
-      
-      // Check if there's any selection
-      if (startPos === endPos) {
-        // No selection, notify user
-        alert("Please select some text or a variable to apply the modifier.");
-        return;
-      }
-      
-      const selectedText = textarea.value.substring(startPos, endPos);
-      
-      // Check if selection is a variable or contains a variable
-      if (selectedText.includes('{{') && selectedText.includes('}}')) {
-        // Add modifier before the closing }}
-        const modifiedText = selectedText.replace(/}}(?=[^}]*$)/, modifier + '}}');
-        
-        // Replace the selected text with the modified version
-        textarea.value = textarea.value.substring(0, startPos) + modifiedText + textarea.value.substring(endPos);
-        
-        // Update selection to include the modification
-        textarea.selectionStart = startPos;
-        textarea.selectionEnd = startPos + modifiedText.length;
-      } else {
-        // Wrap selected text in {{ }} with modifier
-        const modifiedText = '{{' + selectedText + modifier + '}}';
-        
-        // Replace the selected text with the modified version
-        textarea.value = textarea.value.substring(0, startPos) + modifiedText + textarea.value.substring(endPos);
-        
-        // Update selection to include the modification
-        textarea.selectionStart = startPos;
-        textarea.selectionEnd = startPos + modifiedText.length;
-      }
-      
-      // Focus back on textarea
-      textarea.focus();
-      
-      // Trigger input event to update character count if needed
-      const event = new Event('input', { bubbles: true });
-      textarea.dispatchEvent(event);
-    }</script>
+  </script>
   
   <!-- Schedule Modal -->
   <div id="scheduleModal" class="modal">
@@ -4086,53 +2982,11 @@ const homepageHTML = `
         
         <div>
           <label for="scheduleTitle">Meta Title Template</label>
-          <!-- Badge-style Variable Buttons for Title -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleTitle', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleTitle', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleTitle', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleTitle', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleTitle', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleTitle', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleTitle', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleTitle', ':lowercase')">LOWER</button>
-          </div>
           <input type="text" id="scheduleTitle" value="{{storeName}} - SALE! Up to {{maxDiscountPercentage}} OFF {{season}} {{year}}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 5px;">
         </div>
         
         <div>
           <label for="scheduleDescription">Meta Description Template</label>
-          <!-- Badge-style Variable Buttons for Description -->
-          <div class="variable-buttons">
-            <!-- Common variables -->
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleDescription', '{{year}}')">YEAR</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleDescription', '{{month}}')">MONTH</button>
-            <button type="button" class="badge-button primary" onclick="insertVariable('scheduleDescription', '{{season}}')">SEASON</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{date}}')">DATE</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{productTitle}}')">PRODUCT</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{collectionTitle}}')">COLLECTION</button>
-            <button type="button" class="badge-button var" onclick="insertVariable('scheduleDescription', '{{storeName}}')">STORE</button>
-            
-            <!-- Conditional logic -->
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleDescription', '{{if hasDiscount}}...{{endif}}')">IF</button>
-            <button type="button" class="badge-button conditional" onclick="insertVariable('scheduleDescription', '{{if hasDiscount}}...{{else}}...{{endif}}')">IF/ELSE</button>
-            
-            <!-- Format modifiers -->
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleDescription', ':uppercase')">UPPER</button>
-            <button type="button" class="badge-button format" onclick="insertModifier('scheduleDescription', ':lowercase')">LOWER</button>
-            
-            <!-- Discount variables -->
-            <button type="button" class="badge-button discount" onclick="insertVariable('scheduleDescription', '{{maxDiscountPercentage}}')">MAX %</button>
-            <button type="button" class="badge-button discount" onclick="insertVariable('scheduleDescription', '{{discountRange}}')">RANGE</button>
-          </div>
           <textarea id="scheduleDescription">Limited time offer: Save up to {{maxDiscountPercentage}} on our {{season}} collection. Shop now before the sale ends!</textarea>
         </div>
         
@@ -4175,61 +3029,10 @@ const homepageHTML = `
 </html>
 `;
 
-// Auth middleware for app routes
-const authMiddleware = async (req, res, next) => {
-  const shop = req.query.shop || process.env.SHOP;
-  
-  // If no shop is provided, redirect to auth
-  if (!shop) {
-    return res.redirect('/auth?shop=' + encodeURIComponent(process.env.SHOP || 'your-store.myshopify.com'));
-  }
-  
-  let session;
-  
-  // Try to load from MongoDB
-  try {
-    const database = require('../src/services/database');
-    session = await database.loadSession(shop);
-  } catch (dbError) {
-    console.error('Error loading session from MongoDB:', dbError);
-  }
-  
-  // Fall back to in-memory storage if not found in MongoDB
-  if (!session) {
-    const sessionKey = `${shop}_offline`;
-    session = SESSION_STORAGE.get(sessionKey);
-  }
-  
-  // If no session found, redirect to auth
-  if (!session) {
-    return res.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
-  }
-  
-  // Set session and continue
-  req.shopifySession = session;
-  next();
-};
-
-// Protected routes
-app.get('/', authMiddleware, (req, res) => {
-  res.send(dashboardHTML);
-});
-
-app.get('/homepage', authMiddleware, (req, res) => {
+// Homepage route
+app.get('/homepage', (req, res) => {
+  // For a real implementation, this would check for authentication
   res.send(homepageHTML);
-});
-
-// Apply auth middleware to other routes
-app.get('/collections', authMiddleware, (req, res) => {
-  res.send(collectionsHTML);
-});
-
-app.get('/products', authMiddleware, (req, res) => {
-  res.send(productsHTML);
-});
-
-app.get('/templates', authMiddleware, (req, res) => {
-  res.send(templatesHTML);
 });
 
 // Start scheduler service only in production

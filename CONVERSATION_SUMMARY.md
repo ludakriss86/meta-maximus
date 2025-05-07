@@ -60,21 +60,39 @@
 9. **Recent Updates:**
    - Redesigned Collection Settings page to match Home Page layout
    - Redesigned Product Settings page to match Home Page layout
-   - Added excluded items tables to all settings pages
-   - Enhanced scheduling interfaces with date selection
+   - Replaced excluded items tables with Custom Rules system
+   - Enhanced scheduling interfaces with override options and date selection
    - Reorganized app structure:
      - Home Page Settings
      - Collection Settings
      - Product Settings
    - Removed old "Global Templates" section in favor of individual global settings
-   - Consistent UI experience across all pages
+   - Consistent UI experience and styling across all pages
+   - Fixed port configuration to consistently use port 3001 across all code
+   - Created restart-server.sh script to ensure proper environment setup
+   - Standardized Google Search Preview styling across all pages with consistent border, padding, and background
+   - Created centralized config.js for unified port management
+   - Created utility script for updating CSS to ensure consistency
+   - Enhanced scheduled changes display with tabular format showing status and actions
+   - Implemented pause/resume functionality for scheduled changes and custom rules
+   - Used consistent warning (yellow) badges for paused status across all pages
+   - Added schedule name field for better organization of scheduled changes
+   - Added badge-style variable buttons across all pages for easier variable insertion
+   - Implemented shopifyTitle and shopifyDescription variables for default Shopify values
+   - Added initialCaps format modifier for proper title casing
+   - Created comprehensive variables test page to showcase all available variables
 
 10. **Next Steps:**
+    - Implement MongoDB integration
+      - Replace in-memory storage with persistent MongoDB
+      - Set up database connection pooling
+      - Create indexes for performance optimization
+      - Implement data validation and error handling
     - Connect to actual Shopify API data
     - Add error handling and validation
     - Implement user preferences
     - Complete scheduling implementation with date selection
     - Add bulk editing interface for collections and products
-    - MongoDB integration for production
+    - Prepare for production deployment
 
-_Last updated: May 7, 2025_
+_Last updated: May 15, 2025_

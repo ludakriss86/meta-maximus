@@ -1,0 +1,43 @@
+{
+  "name": "Meta Maximus",
+  "description": "Dynamic meta tag management for Shopify",
+  "repository": "https://github.com/yourusername/meta-maximus",
+  "keywords": ["node", "express", "shopify", "mongodb", "meta-tags", "seo"],
+  "env": {
+    "SHOPIFY_API_KEY": {
+      "description": "Shopify API Key"
+    },
+    "SHOPIFY_API_SECRET": {
+      "description": "Shopify API Secret"
+    },
+    "SCOPES": {
+      "description": "Shopify API scopes",
+      "value": "write_products,write_content,read_products,read_content,write_metafields,read_metafields"
+    },
+    "HOST": {
+      "description": "The hostname of your app (without https://)",
+      "value": "your-app-name.herokuapp.com"
+    },
+    "MONGODB_URI": {
+      "description": "MongoDB connection string"
+    },
+    "MONGODB_DB_NAME": {
+      "description": "MongoDB database name",
+      "value": "meta-maximus"
+    },
+    "NODE_ENV": {
+      "description": "Environment",
+      "value": "production"
+    }
+  },
+  "addons": [
+    {
+      "plan": "mongolab:sandbox"
+    }
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+}

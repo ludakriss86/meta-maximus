@@ -1,0 +1,51 @@
+    // Schedule modal functionality
+    const scheduleModal = document.getElementById('scheduleModal');
+    
+    // Schedule new changes
+    document.getElementById('scheduleNewChange').addEventListener('click', function() {
+      // Set default schedule date to tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      document.getElementById('scheduleStart').valueAsDate = tomorrow;
+      
+      scheduleModal.style.display = 'block';
+    });
+    
+    // Schedule cancel
+    document.getElementById('scheduleCancel').addEventListener('click', function() {
+      scheduleModal.style.display = 'none';
+    });
+    
+    // Schedule preview
+    document.getElementById('schedulePreview').addEventListener('click', function() {
+      const title = document.getElementById('scheduleTitle').value
+        .replace(/{{storeName}}/g, 'Your Store')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{maxDiscountPercentage}}/g, '30%');
+      
+      const description = document.getElementById('scheduleDescription').value
+        .replace(/{{storeName}}/g, 'Your Store')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{maxDiscountPercentage}}/g, '30%');
+      
+      document.getElementById('schedulePreviewTitle').textContent = title;
+      document.getElementById('schedulePreviewDescription').textContent = description;
+    });
+    
+    // Schedule submit
+    document.getElementById('scheduleForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // In a real app, we would save to the server
+      alert('Schedule saved successfully\!');
+      scheduleModal.style.display = 'none';
+    });
+    
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      if (event.target == scheduleModal) {
+        scheduleModal.style.display = 'none';
+      }
+    };

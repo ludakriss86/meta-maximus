@@ -2,6 +2,8 @@
 
 Meta Maximus is a Shopify app that automates the management of SEO meta fields for products and collections using dynamic variables. The app allows merchants to set up meta titles and descriptions that automatically update based on variables like dates, discounts, and seasonal factors.
 
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+
 ## Features
 
 - **Dynamic Variables**: Insert variables like `{{year}}`, `{{season}}`, `{{productTitle}}` that automatically resolve to current values
@@ -9,6 +11,8 @@ Meta Maximus is a Shopify app that automates the management of SEO meta fields f
 - **Discount Calculations**: Automatically calculate and display discount information with variables like `{{maxDiscountPercentage}}`
 - **Format Modifiers**: Apply formatting to variables with modifiers like `:lowercase` and `:uppercase`
 - **Scheduling**: Set start and end dates for meta tag changes that automatically revert when they expire
+- **Custom Rules**: Create conditional rules for specific products/collections based on tags, types, vendors, etc.
+- **Status Management**: Pause, resume, and delete scheduled changes or rules as needed
 - **Bulk Editing**: Update multiple products or collections at once with the same template
 
 ## Getting Started
@@ -66,16 +70,60 @@ Meta Maximus is a Shopify app that automates the management of SEO meta fields f
 
 ### Creating Meta Tag Templates
 
-1. Navigate to the **Meta Tags Manager** page
-2. Select a product or collection to edit
-3. Enter a template using variables:
-   - Basic: `{{year}}`, `{{month}}`, `{{season}}`
-   - Product: `{{productTitle}}`, `{{productType}}`, `{{productPrice}}`
-   - Collection: `{{collectionTitle}}`, `{{collectionCount}}`
-   - Discount: `{{maxDiscountPercentage}}`, `{{discountRange}}`, `{{hasDiscount}}`
+1. Navigate to the **Global Templates** page to set up default templates
+2. Enter templates using variables, modifiers, and conditional logic
+3. Available variables:
 
-4. Preview how the template will look when rendered
+   #### Basic Variables
+   - `{{year}}` - Current year (e.g., 2025)
+   - `{{month}}` - Current month name (e.g., May)
+   - `{{day}}` - Current day of month (e.g., 6)
+   - `{{date}}` - Formatted date (e.g., May 6, 2025)
+   - `{{season}}` - Current season (Spring, Summer, Fall, Winter)
+
+   #### Product Variables
+   - `{{productTitle}}` - Product title
+   - `{{productType}}` - Product type
+   - `{{productVendor}}` - Product vendor
+   - `{{productPrice}}` - Current product price (e.g., $29.99)
+   - `{{comparePrice}}` - Compare-at price (e.g., $39.99)
+
+   #### Collection Variables
+   - `{{collectionTitle}}` - Collection title
+   - `{{collectionDescription}}` - Collection description (truncated to 100 chars)
+   - `{{collectionCount}}` - Number of products in collection
+
+   #### Discount Variables
+   - `{{maxDiscountPercentage}}` - Highest discount percentage in collection (e.g., 30%)
+   - `{{minDiscountPercentage}}` - Lowest discount percentage in collection (e.g., 10%)
+   - `{{discountRange}}` - Range of discounts (e.g., "10-30%")
+   - `{{hasDiscount}}` - Boolean flag if any products have discounts
+   - `{{discountedCount}}` - Number of discounted products in collection
+
+   #### Format Modifiers
+   - `{{variable:lowercase}}` - Convert to lowercase
+   - `{{variable:uppercase}}` - Convert to uppercase
+   - `{{variable:number}}` - Format as number
+
+4. Preview how the template will look when rendered with the "Preview" button
 5. Save your changes
+
+### Managing Global Settings
+
+1. Navigate to the Home Page, Collections, or Products Settings pages
+2. Update the global templates at the top of each page
+3. These templates will override the defaults from Shopify
+4. Preview how they will look in search results
+5. Save your changes
+
+### Custom Templates and Rules
+
+1. Navigate to the Custom Rules section on Collections or Products pages
+2. Create rules to override global settings for specific items
+3. Use conditions like tags, types, or specific collection names
+4. Set custom meta templates for matching items
+5. Schedule rules with start/end dates
+6. Manage rule status (active, scheduled, paused) as needed
 
 ### Using Conditional Logic
 
@@ -91,12 +139,27 @@ Use the if/else/endif syntax to show different content based on conditions:
 
 ### Scheduling Meta Tag Changes
 
-1. Navigate to the **Scheduling** page
-2. Click "Create Schedule"
-3. Select the product or collection to update
+1. Navigate to the scheduling section on Home Page, Collections, or Products pages
+2. Click "Schedule a Template Change"
+3. Enter a name for your schedule
 4. Enter the meta title and description templates
-5. Set the start and end dates for the change
-6. Save the schedule
+5. Set the start and end dates for the change (or leave end date empty for no expiration)
+6. Preview how it will look in search results
+7. Save the schedule
+
+### Managing Custom Rules
+
+1. Navigate to the Custom Rules section on Collections or Products pages
+2. Click "Create Custom Rule"
+3. For Collections:
+   - Search for specific collections to customize
+   - Set custom meta templates
+   - Set schedule dates
+4. For Products:
+   - Create rules based on product tags, types, vendors, etc.
+   - Apply to matching products
+   - Set schedule dates
+5. Use the actions buttons to edit, pause/resume, or delete rules as needed
 
 ## Development
 
@@ -114,6 +177,11 @@ Use the if/else/endif syntax to show different content based on conditions:
 
 - **VariableParser**: Core service that processes templates and resolves variables
 - **VariablePreview**: React component for previewing template results
+- **MetaFieldEditor**: Component for editing meta fields with variable support
+- **VariableSelector**: Component for selecting available variables
+- **Database Service**: Handles database operations for templates and scheduling
+- **Scheduler Service**: Manages scheduled meta tag changes
+- **Custom Rules System**: Manages conditional rules for products and collections
 
 ### Running Tests
 
@@ -122,6 +190,26 @@ npm test
 ```
 
 ## Deployment
+
+### Development with Ngrok
+
+For local development with a public URL:
+
+1. Install ngrok: https://ngrok.com/download
+2. Start your development server:
+   ```bash
+   npm run dev
+   ```
+3. In a separate terminal, start ngrok:
+   ```bash
+   ngrok http 3001
+   ```
+4. Update your `.env` file with the ngrok URL:
+   ```
+   HOST=your-ngrok-url.ngrok.io
+   ```
+5. Update your Shopify app settings with the ngrok URL
+6. Restart your development server
 
 ### Deploying to Heroku
 
@@ -132,7 +220,7 @@ npm test
 
 ### Deploying to Shopify App Store
 
-1. Implement OAuth authentication
+1. Implement OAuth authentication (already included in this app)
 2. Set up billing
 3. Prepare privacy policy and terms of service
 4. Create App Store listing assets

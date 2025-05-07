@@ -1,0 +1,35 @@
+    <!-- Scheduler Section -->
+    <div class="card">
+      <h2>Scheduled Changes</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        Schedule meta tag changes to automatically activate on specific dates.
+        This is useful for sales, seasonal campaigns, or any time-limited promotions.
+      </p>
+      
+      <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+        <div style="flex: 1;">
+          <label for="scheduleStart">Start Date</label>
+          <input type="date" id="scheduleStart" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-top: 5px;">
+        </div>
+        <div style="flex: 1;">
+          <label for="scheduleEnd">End Date (Optional)</label>
+          <input type="date" id="scheduleEnd" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-top: 5px;">
+        </div>
+      </div>
+      
+      <div>
+        <label for="scheduleTitle">Scheduled Meta Title Template</label>
+        <textarea id="scheduleTitle" placeholder="Enter the meta title to use during the scheduled period">{{storeName}} - SALE! Up to {{maxDiscountPercentage}} OFF {{season}} {{year}}</textarea>
+      </div>
+      
+      <div>
+        <label for="scheduleDescription">Scheduled Meta Description Template</label>
+        <textarea id="scheduleDescription" placeholder="Enter the meta description to use during the scheduled period">Limited time offer: Save up to {{maxDiscountPercentage}} on our {{season}} collection. Shop now before the sale ends!</textarea>
+      </div>
+      
+      <div style="margin-top: 15px;">
+        <button id="scheduleBtn">Schedule Changes</button>
+      </div>
+    </div>
+    
+    <!-- Variable Reference Card -->

@@ -18,18 +18,8 @@ class VariableParser {
    * Register built-in variables
    */
   registerDefaultVariables() {
-    // Date/Time variables
+    // Basic variables - season and year are retained as they're still useful
     this.registerVariable('year', () => new Date().getFullYear());
-    this.registerVariable('month', () => {
-      const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                     'July', 'August', 'September', 'October', 'November', 'December'];
-      return months[new Date().getMonth()];
-    });
-    this.registerVariable('day', () => new Date().getDate());
-    this.registerVariable('date', () => {
-      const date = new Date();
-      return `${this.resolveVariable('month')} ${date.getDate()}, ${date.getFullYear()}`;
-    });
     this.registerVariable('season', () => {
       const month = new Date().getMonth();
       if (month >= 2 && month <= 4) return 'Spring';
@@ -37,6 +27,9 @@ class VariableParser {
       if (month >= 8 && month <= 10) return 'Fall';
       return 'Winter';
     });
+    
+    // Store information
+    this.registerVariable('storeName', () => this.options.storeName || 'Your Store');
   }
   
   /**
@@ -72,6 +65,28 @@ class VariableParser {
   }
   
   /**
+   * Register store-level variables
+   * 
+   * @param {Object} storeData - Shopify shop object and stats
+   */
+  registerStoreVariables(storeData = {}) {
+    const { shop, products = [], collections = [] } = storeData;
+    
+    if (shop) {
+      this.registerVariable('storeName', () => shop.name);
+      this.registerVariable('storeDomain', () => shop.domain);
+      this.registerVariable('storeEmail', () => shop.email);
+    }
+    
+    // Store stats
+    this.registerVariable('totalProducts', () => String(products.length));
+    this.registerVariable('collectionsCount', () => String(collections.length));
+    
+    // Calculate discount variables across all products
+    this.registerDiscountVariables(products);
+  }
+  
+  /**
    * Register collection-specific variables
    * 
    * @param {Object} collection - Shopify collection object
@@ -87,39 +102,60 @@ class VariableParser {
       const description = collection.body_html.replace(/<[^>]*>/g, '');
       return description.length > 100 ? description.substring(0, 97) + '...' : description;
     });
-    this.registerVariable('collectionCount', () => products.length);
+    this.registerVariable('collectionCount', () => String(products.length));
     
     // Calculate discount variables if products are provided
-    if (products && products.length > 0) {
-      // Calculate discount percentages for each product
-      const discounts = products.map(product => {
-        const variant = product.variants[0];
-        if (!variant.compare_at_price || parseFloat(variant.compare_at_price) <= 0) {
-          return 0;
-        }
-        const regularPrice = parseFloat(variant.compare_at_price);
-        const salePrice = parseFloat(variant.price);
-        return Math.round(((regularPrice - salePrice) / regularPrice) * 100);
-      });
-      
-      // Filter out zero discounts
-      const nonZeroDiscounts = discounts.filter(discount => discount > 0);
-      
-      // Calculate discount variables
-      const hasDiscounts = nonZeroDiscounts.length > 0;
-      const maxDiscount = hasDiscounts ? Math.max(...nonZeroDiscounts) : 0;
-      const minDiscount = hasDiscounts ? Math.min(...nonZeroDiscounts) : 0;
-      
-      this.registerVariable('maxDiscountPercentage', () => hasDiscounts ? `${maxDiscount}%` : '0%');
-      this.registerVariable('minDiscountPercentage', () => hasDiscounts ? `${minDiscount}%` : '0%');
-      this.registerVariable('discountRange', () => {
-        if (!hasDiscounts) return '0%';
-        if (minDiscount === maxDiscount) return `${minDiscount}%`;
-        return `${minDiscount}-${maxDiscount}%`;
-      });
-      this.registerVariable('hasDiscount', () => hasDiscounts ? 'true' : '');
-      this.registerVariable('discountedCount', () => String(nonZeroDiscounts.length));
+    this.registerDiscountVariables(products);
+  }
+  
+  /**
+   * Calculate and register discount-related variables
+   * 
+   * @param {Array} products - Array of product objects
+   */
+  registerDiscountVariables(products = []) {
+    if (!products || products.length === 0) {
+      this.registerVariable('maxDiscountPercentage', () => '0%');
+      this.registerVariable('minDiscountPercentage', () => '0%');
+      this.registerVariable('discountRange', () => '0%');
+      this.registerVariable('hasDiscount', () => '');
+      this.registerVariable('discountedCount', () => '0');
+      this.registerVariable('avgDiscount', () => '0%');
+      return;
     }
+    
+    // Calculate discount percentages for each product
+    const discounts = products.map(product => {
+      const variant = product.variants[0];
+      if (!variant.compare_at_price || parseFloat(variant.compare_at_price) <= 0) {
+        return 0;
+      }
+      const regularPrice = parseFloat(variant.compare_at_price);
+      const salePrice = parseFloat(variant.price);
+      return Math.round(((regularPrice - salePrice) / regularPrice) * 100);
+    });
+    
+    // Filter out zero discounts
+    const nonZeroDiscounts = discounts.filter(discount => discount > 0);
+    
+    // Calculate discount variables
+    const hasDiscounts = nonZeroDiscounts.length > 0;
+    const maxDiscount = hasDiscounts ? Math.max(...nonZeroDiscounts) : 0;
+    const minDiscount = hasDiscounts ? Math.min(...nonZeroDiscounts) : 0;
+    const avgDiscount = hasDiscounts 
+      ? Math.round(nonZeroDiscounts.reduce((sum, val) => sum + val, 0) / nonZeroDiscounts.length) 
+      : 0;
+    
+    this.registerVariable('maxDiscountPercentage', () => hasDiscounts ? `${maxDiscount}%` : '0%');
+    this.registerVariable('minDiscountPercentage', () => hasDiscounts ? `${minDiscount}%` : '0%');
+    this.registerVariable('discountRange', () => {
+      if (!hasDiscounts) return '0%';
+      if (minDiscount === maxDiscount) return `${minDiscount}%`;
+      return `${minDiscount}-${maxDiscount}%`;
+    });
+    this.registerVariable('hasDiscount', () => hasDiscounts ? 'true' : '');
+    this.registerVariable('discountedCount', () => String(nonZeroDiscounts.length));
+    this.registerVariable('avgDiscount', () => `${avgDiscount}%`);
   }
   
   /**
@@ -304,6 +340,30 @@ class VariableParser {
     }
     
     return Array.from(variables);
+  }
+  
+  /**
+   * Get all available variables organized by category
+   * 
+   * @returns {Object} - Categorized variable names
+   */
+  getAllVariablesByCategory() {
+    return {
+      basic: ['year', 'season'],
+      store: ['storeName', 'storeDomain', 'storeEmail', 'totalProducts', 'collectionsCount'],
+      product: ['productTitle', 'productType', 'productVendor', 'productPrice', 'comparePrice'],
+      collection: ['collectionTitle', 'collectionDescription', 'collectionCount'],
+      discount: [
+        'maxDiscountPercentage', 
+        'minDiscountPercentage', 
+        'discountRange', 
+        'hasDiscount', 
+        'discountedCount',
+        'avgDiscount'
+      ],
+      conditionals: ['if', 'else', 'endif'],
+      modifiers: ['lowercase', 'uppercase']
+    };
   }
 }
 

@@ -1,129 +1,257 @@
-import { useState } from "react";
+import React from 'react';
 import {
   Page,
-  Layout,
   Card,
-  Button,
+  Layout,
   Text,
   BlockStack,
+  Link,
   Box,
   InlineStack,
-  Badge
-} from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
-import VariablePreview from "../components/VariablePreview";
+  Icon,
+  Button,
+  Image
+} from '@shopify/polaris';
+import { TitleBar } from '@shopify/app-bridge-react';
+import {
+  HomeIcon,
+  CollectionsIcon,
+  ProductsIcon,
+  TemplateIcon,
+  CalendarIcon
+} from '@shopify/polaris-icons';
 
 /**
- * Main dashboard component for Meta Maximus app
+ * Home Page / Dashboard for Meta Maximus
  */
-export default function Index() {
-  const [savedTemplates, setSavedTemplates] = useState([]);
-  
-  // Sample data for preview
-  const sampleData = {
-    collectionTitle: 'Summer Essentials',
-    season: 'Summer',
-    year: new Date().getFullYear().toString(),
-    hasDiscount: 'true',
-    maxDiscountPercentage: '40%',
-    minDiscountPercentage: '20%',
-    discountRange: '20-40%',
-    discountedCount: '15',
-    productTitle: 'Cotton T-Shirt',
-    productType: 'Apparel',
-    productVendor: 'Fashion Brand',
-    productPrice: '$29.99',
-    comparePrice: '$39.99'
-  };
-  
-  /**
-   * Handle template update from the VariablePreview component
-   */
-  const handleTemplateUpdate = (templateData) => {
-    // In a real app, you might save this to a database
-    console.log('Template updated:', templateData);
-  };
+export default function HomePage() {
+  const appVersion = '1.0.0';
   
   return (
-    <Page>
-      <TitleBar title="Meta Maximus" primaryAction={null} />
+    <Page
+      title="Meta Maximus"
+      subtitle="Dynamic SEO meta tag management for Shopify"
+      fullWidth
+    >
+      <TitleBar title="Dashboard" />
       
       <BlockStack gap="500">
-        {/* Welcome Card */}
-        <Card>
-          <BlockStack gap="400">
-            <Text as="h2" variant="headingLg">
-              Welcome to Meta Maximus
-            </Text>
-            <Text as="p" variant="bodyMd">
-              Create dynamic meta tags that automatically update based on variables like dates, discounts, and seasonal factors.
-            </Text>
-          </BlockStack>
-        </Card>
-        
-        {/* Variable Preview Component */}
-        <BlockStack gap="400">
-          <Text as="h3" variant="headingMd">
-            Template Editor
-          </Text>
+        <Layout>
+          <Layout.Section oneHalf>
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd">
+                  Welcome to Meta Maximus
+                </Text>
+                
+                <Text variant="bodyMd">
+                  Meta Maximus helps you automate SEO meta fields for your products and collections.
+                  Create dynamic meta titles and descriptions that automatically update based on variables
+                  like dates, discounts, and seasonal factors.
+                </Text>
+                
+                <Box paddingBlockStart="300">
+                  <Button primary url="/templates">
+                    Get Started
+                  </Button>
+                </Box>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
           
-          <VariablePreview 
-            initialTemplate="Shop our {{collectionTitle}} - {{season}} {{year}} Collection"
-            onUpdate={handleTemplateUpdate}
-            sampleData={sampleData}
-          />
-        </BlockStack>
+          <Layout.Section oneHalf>
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd">
+                  Quick Navigation
+                </Text>
+                
+                <BlockStack gap="300">
+                  <Link url="/homepage" monochrome removeUnderline>
+                    <InlineStack gap="300" blockAlign="center">
+                      <Icon source={HomeIcon} color="highlight" />
+                      <Text variant="bodyMd" fontWeight="semibold">
+                        Home Page
+                      </Text>
+                      <Text variant="bodySm" color="subdued">
+                        Manage meta tags for your store's home page
+                      </Text>
+                    </InlineStack>
+                  </Link>
+
+                  <Link url="/templates" monochrome removeUnderline>
+                    <InlineStack gap="300" blockAlign="center">
+                      <Icon source={TemplateIcon} color="highlight" />
+                      <Text variant="bodyMd" fontWeight="semibold">
+                        Global Templates
+                      </Text>
+                      <Text variant="bodySm" color="subdued">
+                        Set up default templates for all items
+                      </Text>
+                    </InlineStack>
+                  </Link>
+                  
+                  <Link url="/collections" monochrome removeUnderline>
+                    <InlineStack gap="300" blockAlign="center">
+                      <Icon source={CollectionsIcon} color="highlight" />
+                      <Text variant="bodyMd" fontWeight="semibold">
+                        Collections Manager
+                      </Text>
+                      <Text variant="bodySm" color="subdued">
+                        Manage meta tags for collections
+                      </Text>
+                    </InlineStack>
+                  </Link>
+                  
+                  <Link url="/products" monochrome removeUnderline>
+                    <InlineStack gap="300" blockAlign="center">
+                      <Icon source={ProductsIcon} color="highlight" />
+                      <Text variant="bodyMd" fontWeight="semibold">
+                        Products Manager
+                      </Text>
+                      <Text variant="bodySm" color="subdued">
+                        Manage meta tags for individual products
+                      </Text>
+                    </InlineStack>
+                  </Link>
+                  
+                  <Link url="/scheduling" monochrome removeUnderline>
+                    <InlineStack gap="300" blockAlign="center">
+                      <Icon source={CalendarIcon} color="highlight" />
+                      <Text variant="bodyMd" fontWeight="semibold">
+                        Scheduling (Coming Soon)
+                      </Text>
+                      <Text variant="bodySm" color="subdued">
+                        Schedule meta tag changes for specific dates
+                      </Text>
+                    </InlineStack>
+                  </Link>
+                </BlockStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        </Layout>
         
-        {/* Example Use Cases */}
-        <Card>
-          <BlockStack gap="400">
-            <Text as="h3" variant="headingMd">
-              Example Use Cases
-            </Text>
-            
-            <BlockStack gap="300">
-              <InlineStack gap="200" align="start">
-                <Badge>Discounts</Badge>
-                <Text as="span" variant="bodyMd">
-                  {{'{{'}}if hasDiscount{{'}}'}}Save up to {{'{{'}}maxDiscountPercentage{{'}}'}} on {{'{{'}}collectionTitle{{'}}'}}!{{'{{'}}else{{'}}'}}Shop our {{'{{'}}collectionTitle{{'}}'}}{{'{{'}}endif{{'}}'}}
+        <Layout>
+          <Layout.Section oneThird>
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd">
+                  Getting Started
                 </Text>
-              </InlineStack>
-              
-              <InlineStack gap="200" align="start">
-                <Badge>Seasonal</Badge>
-                <Text as="span" variant="bodyMd">
-                  {{'{{'}}season{{'}}'}} {{'{{'}}year{{'}}'}} {{'{{'}}collectionTitle{{'}}'}} - New Arrivals
+                
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    1. Set up Home Page Meta Tags
+                  </Text>
+                  <Text variant="bodyMd">
+                    Configure meta tags for your store's home page using dynamic variables.
+                  </Text>
+                  
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    2. Set up Global Templates
+                  </Text>
+                  <Text variant="bodyMd">
+                    Create default templates that will be used for all your products and collections.
+                  </Text>
+                  
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    3. Customize Collection Meta Tags
+                  </Text>
+                  <Text variant="bodyMd">
+                    Override global templates for specific collections if needed.
+                  </Text>
+                  
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    4. Customize Product Meta Tags
+                  </Text>
+                  <Text variant="bodyMd">
+                    Fine-tune meta tags for individual products when necessary.
+                  </Text>
+                </BlockStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+          
+          <Layout.Section oneThird>
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd">
+                  Variable System
                 </Text>
-              </InlineStack>
-              
-              <InlineStack gap="200" align="start">
-                <Badge>Products</Badge>
-                <Text as="span" variant="bodyMd">
-                  {{'{{'}}productTitle{{'}}'}} | {{'{{'}}productType{{'}}'}} | {{'{{'}}if hasDiscount{{'}}'}}Sale Price{{'{{'}}else{{'}}'}}Regular Price{{'{{'}}endif{{'}}'}}
+                
+                <Text variant="bodyMd">
+                  Use variables in your templates that automatically update based on your store's data.
                 </Text>
-              </InlineStack>
-            </BlockStack>
-          </BlockStack>
-        </Card>
+                
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    Basic Variables
+                  </Text>
+                  <Text variant="bodyMd">
+                    <code>{{'{{'}}year{{'}}'}}</code>, <code>{{'{{'}}month{{'}}'}}</code>, <code>{{'{{'}}season{{'}}'}}</code>
+                  </Text>
+                  
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    Product Variables
+                  </Text>
+                  <Text variant="bodyMd">
+                    <code>{{'{{'}}productTitle{{'}}'}}</code>, <code>{{'{{'}}productType{{'}}'}}</code>, <code>{{'{{'}}productVendor{{'}}'}}</code>
+                  </Text>
+                  
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    Discount Variables
+                  </Text>
+                  <Text variant="bodyMd">
+                    <code>{{'{{'}}maxDiscountPercentage{{'}}'}}</code>, <code>{{'{{'}}hasDiscount{{'}}'}}</code>
+                  </Text>
+                </BlockStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+          
+          <Layout.Section oneThird>
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd">
+                  Advanced Features
+                </Text>
+                
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    Conditional Logic
+                  </Text>
+                  <Text variant="bodyMd">
+                    Use <code>{{'{{'}}if hasDiscount{{'}}'}}...{{'{{'}}else{{'}}'}}...{{'{{'}}endif{{'}}'}}</code> to show different content based on conditions.
+                  </Text>
+                  
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    Format Modifiers
+                  </Text>
+                  <Text variant="bodyMd">
+                    Use <code>{{'{{'}}variable:modifier{{'}}'}}</code> to format variables (e.g., <code>{{'{{'}}month:uppercase{{'}}'}}</code>).
+                  </Text>
+                  
+                  <Text variant="bodyMd" fontWeight="semibold">
+                    Scheduling (Coming Soon)
+                  </Text>
+                  <Text variant="bodyMd">
+                    Schedule meta tag changes to automatically activate and deactivate on specific dates.
+                  </Text>
+                </BlockStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        </Layout>
         
-        {/* Next Steps */}
         <Card>
-          <BlockStack gap="400">
-            <Text as="h3" variant="headingMd">
-              Next Steps
+          <BlockStack gap="200" align="center">
+            <Text variant="bodySm" color="subdued">
+              Meta Maximus v{appVersion} | Created by Your Company
             </Text>
-            
-            <BlockStack gap="200">
-              <Text as="p" variant="bodyMd">
-                1. Create templates for your products and collections
-              </Text>
-              <Text as="p" variant="bodyMd">
-                2. Schedule meta tag updates for seasonal promotions
-              </Text>
-              <Text as="p" variant="bodyMd">
-                3. Set up conditional logic for sales and discounts
-              </Text>
-            </BlockStack>
+            <Text variant="bodySm" color="subdued">
+              Need help? Contact support@example.com
+            </Text>
           </BlockStack>
         </Card>
       </BlockStack>

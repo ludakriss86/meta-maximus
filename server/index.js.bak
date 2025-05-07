@@ -1,0 +1,2410 @@
+require('dotenv').config();
+// Import the adapter before anything else
+require('@shopify/shopify-api/adapters/node');
+const express = require('express');
+const { shopifyApi, ApiVersion, LATEST_API_VERSION } = require('@shopify/shopify-api');
+const { join } = require('path');
+const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
+const path = require('path');
+const config = require('../src/config');
+const scheduler = require('../src/services/scheduler');
+
+const app = express();
+const port = config.PORT; // Consistent port usage from config
+
+// Initialize Shopify API
+const shopify = shopifyApi({
+  apiKey: process.env.SHOPIFY_API_KEY,
+  apiSecretKey: process.env.SHOPIFY_API_SECRET,
+  scopes: process.env.SCOPES.split(','),
+  hostName: process.env.HOST || `localhost:${port}`,
+  hostScheme: 'https',
+  apiVersion: ApiVersion.January24 || LATEST_API_VERSION,
+  isEmbeddedApp: true,
+});
+
+// Middleware
+app.use(express.json());
+app.use(cookieParser(shopify.config.apiSecretKey));
+
+// Serve static assets from the public folder
+app.use(express.static(join(__dirname, '..', 'public')));
+
+// In-memory session storage (for development)
+const SESSION_STORAGE = new Map();
+
+// Generate a random nonce for OAuth
+const generateNonce = () => crypto.randomBytes(16).toString('hex');
+
+// Auth route - starts OAuth process
+app.get('/auth', async (req, res) => {
+  const shop = req.query.shop;
+  
+  if (!shop) {
+    return res.status(400).send('Missing shop parameter');
+  }
+  
+  // Generate nonce and store in cookie
+  const nonce = generateNonce();
+  res.cookie('shopify_nonce', nonce, { signed: true });
+  
+  // Redirect to Shopify for auth
+  const authUrl = await shopify.auth.begin({
+    shop,
+    callbackPath: '/auth/callback',
+    isOnline: false,
+    rawRequest: req,
+    rawResponse: res,
+  });
+  
+  res.redirect(authUrl);
+});
+
+// Auth callback route - completes OAuth process
+app.get('/auth/callback', async (req, res) => {
+  try {
+    // Get nonce from cookie
+    const nonce = req.signedCookies.shopify_nonce;
+    
+    // Complete OAuth process
+    const session = await shopify.auth.callback({
+      rawRequest: req,
+      rawResponse: res,
+    });
+    
+    // Store session
+    const sessionKey = `${session.shop}_${session.isOnline ? 'online' : 'offline'}`;
+    SESSION_STORAGE.set(sessionKey, session);
+    
+    // Clean up nonce
+    res.clearCookie('shopify_nonce');
+    
+    // Redirect to app home
+    res.redirect('/');
+  } catch (error) {
+    console.error('Error during auth callback:', error);
+    res.status(500).send('Auth failed: ' + error.message);
+  }
+});
+
+// API Routes - protected by authentication
+app.use('/api', async (req, res, next) => {
+  // For testing purposes, allow the preview API to work without authentication
+  if (req.path === '/preview') {
+    return next();
+  }
+  
+  const shop = req.query.shop || process.env.SHOP;
+  
+  if (!shop) {
+    return res.status(400).json({ error: 'Missing shop parameter' });
+  }
+  
+  // Check if we have a session for this shop
+  const sessionKey = `${shop}_offline`;
+  const session = SESSION_STORAGE.get(sessionKey);
+  
+  if (!session) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  // Set session for API routes
+  req.shopifySession = session;
+  next();
+}, require('./routes/api'));
+
+// Create a simple testing HTML file for our new dashboard
+const dashboardHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meta Maximus Dashboard</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f6f6f7;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      padding: 20px;
+    }
+    .nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .nav a {
+      padding: 10px 15px;
+      background: #5c6ac4;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    h1, h2 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Meta Maximus Dashboard</h1>
+    
+    <div class="nav">
+      <a href="/">Home</a>
+      <a href="/homepage">Home Page Settings</a>
+      <a href="/collections">Collection Settings</a>
+      <a href="/products">Product Settings</a>
+    </div>
+    
+    <div class="card">
+      <h2>Welcome to Meta Maximus</h2>
+      <p>Dynamic SEO meta tag management for Shopify</p>
+      <p>This is a temporary dashboard until we integrate the React frontend.</p>
+    </div>
+    
+    <div class="card">
+      <h2>Available Pages</h2>
+      <ul>
+        <li><a href="/homepage">Home Page Settings</a> - Manage meta tags for your store's home page</li>
+        <li><a href="/collections">Collection Settings</a> - Manage meta tags for collections</li>
+        <li><a href="/products">Product Settings</a> - Manage meta tags for products</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+// Create a simple templates page HTML
+const templatesHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meta Maximus</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f6f6f7;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      padding: 20px;
+    }
+    .nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .nav a {
+      padding: 10px 15px;
+      background: #5c6ac4;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      min-height: 100px;
+      margin-bottom: 5px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    button {
+      padding: 10px 15px;
+      background: #5c6ac4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .badge.good {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    .badge.warning {
+      background: #ffea8a;
+      color: #8a6116;
+    }
+    .badge.bad {
+      background: #ffd2d2;
+      color: #bf0711;
+    }
+    
+    
+    .character-count {
+      font-size: 12px;
+      margin-bottom: 15px;
+      color: #637381;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .badge.good {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    .badge.warning {
+      background: #ffea8a;
+      color: #8a6116;
+    }
+    .badge.bad {
+      background: #ffd2d2;
+      color: #bf0711;
+    }
+    .header-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      cursor: pointer;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #5c6ac4;
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+    .template-section {
+      margin-bottom: 20px;
+    }
+    .template-content {
+      display: block;
+    }
+    .preview-section {
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .google-preview {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background: #f9f9f9;
+      max-width: 600px;
+      font-family: arial, sans-serif;
+    }
+    .google-preview-title {
+      color: #1a0dab;
+      font-size: 18px;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .google-preview-url {
+      color: #006621;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+    .google-preview-description {
+      color: #545454;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Global Templates</h1>
+    
+    <div class="nav">
+      <a href="/">Home</a>
+      <a href="/homepage">Home Page</a>
+      <a href="/templates">Global Templates</a>
+      <a href="/collections">Collections</a>
+      <a href="/products">Products</a>
+    </div>
+    
+    <!-- Collection Templates -->
+    <div class="card">
+      <div class="header-section" id="collectionsHeader">
+        <h2>Collection Templates</h2>
+        <label class="toggle-switch">
+          <input type="checkbox" id="collectionsToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      
+      <div class="template-section" id="collectionsSection">
+        <p style="color: #637381; margin-bottom: 15px;">
+          These are your default settings that will override the settings in Shopify. 
+          It might take several days before the results appear in Google search results, 
+          depending on how often Google indexes your site.
+        </p>
+      
+        <div>
+          <label for="collectionTitle">Meta Title Template</label>
+          <textarea id="collectionTitle">{{collectionTitle}} - {{season}} {{year}} Collection | Your Store</textarea>
+          <div class="character-count">
+            <span id="collectionTitleCount">0</span> characters 
+            <span class="badge" id="collectionTitleBadge">checking...</span>
+            <span id="collectionTitleAdvice"></span>
+          </div>
+        </div>
+        <div>
+          <label for="collectionDescription">Meta Description Template</label>
+          <textarea id="collectionDescription">Explore our {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on selected items!{{else}}New arrivals now available.{{endif}}</textarea>
+          <div class="character-count">
+            <span id="collectionDescriptionCount">0</span> characters 
+            <span class="badge" id="collectionDescriptionBadge">checking...</span>
+            <span id="collectionDescriptionAdvice"></span>
+          </div>
+        </div>
+        <div style="margin-top: 15px; display: flex; gap: 10px;">
+          <button id="saveCollectionBtn">Save Collection Templates</button>
+          <button id="previewCollectionBtn">Preview in Search</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Product Templates -->
+    <div class="card">
+      <div class="header-section" id="productsHeader">
+        <h2>Product Templates</h2>
+        <label class="toggle-switch">
+          <input type="checkbox" id="productsToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      
+      <div class="template-section" id="productsSection">
+        <p style="color: #637381; margin-bottom: 15px;">
+          These are your default settings that will override the settings in Shopify. 
+          It might take several days before the results appear in Google search results, 
+          depending on how often Google indexes your site.
+        </p>
+      
+        <div>
+          <label for="productTitle">Meta Title Template</label>
+          <textarea id="productTitle">{{productTitle}} - {{season}} {{year}} | Your Store</textarea>
+          <div class="character-count">
+            <span id="productTitleCount">0</span> characters 
+            <span class="badge" id="productTitleBadge">checking...</span>
+            <span id="productTitleAdvice"></span>
+          </div>
+        </div>
+        <div>
+          <label for="productDescription">Meta Description Template</label>
+          <textarea id="productDescription">Shop our premium {{productTitle}} for {{season}} {{year}}. {{if hasDiscount}}Now on sale with {{maxDiscountPercentage}} off!{{endif}}</textarea>
+          <div class="character-count">
+            <span id="productDescriptionCount">0</span> characters 
+            <span class="badge" id="productDescriptionBadge">checking...</span>
+            <span id="productDescriptionAdvice"></span>
+          </div>
+        </div>
+        <div style="margin-top: 15px; display: flex; gap: 10px;">
+          <button id="saveProductBtn">Save Product Templates</button>
+          <button id="previewProductBtn">Preview in Search</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Search Preview -->
+    <div class="card preview-section" id="searchPreview">
+      <h3>Google Search Preview</h3>
+      <div class="google-preview">
+        <div class="google-preview-title" id="previewTitle">Your Store: Collection Title</div>
+        <div class="google-preview-url">https://your-store.myshopify.com/</div>
+        <div class="google-preview-description" id="previewDescription">
+          This is how your meta description will appear in Google search results. Make it compelling to improve click-through rates.
+        </div>
+      </div>
+    </div>
+    
+    <!-- Variable Reference Card -->
+    <div class="card">
+      <div class="header-section" id="variablesHeader">
+        <h2>Variable Reference</h2>
+        <label class="toggle-switch">
+          <input type="checkbox" id="variablesToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      
+      <div id="variablesSection">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div>
+            <h3>Basic Variables</h3>
+            <ul>
+              <li><code>{{year}}</code> - Current year (e.g., 2025)</li>
+              <li><code>{{month}}</code> - Current month name (e.g., May)</li>
+              <li><code>{{season}}</code> - Current season (Spring, Summer, Fall, Winter)</li>
+              <li><code>{{date}}</code> - Formatted date (e.g., May 6, 2025)</li>
+            </ul>
+            
+            <h3>Product Variables</h3>
+            <ul>
+              <li><code>{{productTitle}}</code> - Product title</li>
+              <li><code>{{productType}}</code> - Product type</li>
+              <li><code>{{productVendor}}</code> - Product vendor</li>
+              <li><code>{{productPrice}}</code> - Current product price</li>
+              <li><code>{{comparePrice}}</code> - Compare-at price</li>
+            </ul>
+          </div>
+          
+          <div>
+            <h3>Collection Variables</h3>
+            <ul>
+              <li><code>{{collectionTitle}}</code> - Collection title</li>
+              <li><code>{{collectionDescription}}</code> - Collection description excerpt</li>
+              <li><code>{{collectionCount}}</code> - Number of products in collection</li>
+              <li><code>{{maxDiscountPercentage}}</code> - Highest discount percentage</li>
+              <li><code>{{minDiscountPercentage}}</code> - Lowest discount percentage</li>
+              <li><code>{{discountRange}}</code> - Range of discounts (e.g., "20-50%")</li>
+              <li><code>{{hasDiscount}}</code> - Boolean flag for discounts</li>
+              <li><code>{{discountedCount}}</code> - Number of discounted products</li>
+            </ul>
+            
+            <h3>Format Modifiers</h3>
+            <ul>
+              <li><code>{{variable:lowercase}}</code> - Convert to lowercase</li>
+              <li><code>{{variable:uppercase}}</code> - Convert to uppercase</li>
+            </ul>
+            
+            <h3>Conditional Logic</h3>
+            <p><code>{{if hasDiscount}}On Sale!{{else}}Regular Price{{endif}}</code></p>
+          </div>
+        </div>
+        
+        <div class="card" style="margin-top: 20px;">
+          <h3>Meta Tag Length Guidelines</h3>
+          <p>
+            <strong>Meta Titles:</strong> Optimal length is 50-60 characters. Google typically displays the first 50-60 characters of a page title.
+            <br>
+            <strong>Meta Descriptions:</strong> Optimal length is 120-155 characters. Google usually truncates meta descriptions to around 155-160 characters on desktop.
+          </p>
+          <p>
+            <strong>Note about Variables:</strong> When using variables, character count will vary depending on the actual values. For example, <code>{{productTitle}}</code> could be 15-50 characters long. Always preview with real data to check final length.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+// Create a simple collections page HTML
+const collectionsHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Collection Settings - Meta Maximus</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f6f6f7;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      padding: 20px;
+    }
+    .nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .nav a {
+      padding: 10px 15px;
+      background: #5c6ac4;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f6f6f7;
+    }
+    
+    .badge.green {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    .badge.blue {
+      background: #d4e8f7;
+      color: #1c6da3;
+    }
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+    button, .button {
+      padding: 6px 12px;
+      background: #5c6ac4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 14px;
+      display: inline-block;
+    }
+    .button.secondary {
+      background: #f4f6f8;
+      color: #212b36;
+      border: 1px solid #c4cdd5;
+    }
+    .button.danger {
+      background: #fd5749;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 50%;
+      max-width: 600px;
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover {
+      color: black;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      min-height: 80px;
+      margin-bottom: 15px;
+    }
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .google-preview {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background: #f9f9f9;
+      max-width: 600px;
+      font-family: arial, sans-serif;
+    }
+    .google-preview-title {
+      color: #1a0dab;
+      font-size: 18px;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .google-preview-url {
+      color: #006621;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+    .google-preview-description {
+      color: #545454;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .date-picker {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      margin-bottom: 15px;
+    }
+    .two-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+  
+    .character-count {
+      font-size: 12px;
+      margin-bottom: 15px;
+      color: #637381;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .badge.good {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    .badge.warning {
+      background: #ffea8a;
+      color: #8a6116;
+    }
+    .badge.bad {
+      background: #ffd2d2;
+      color: #bf0711;
+    }</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Collection Settings</h1>
+    
+    <div class="nav">
+      <a href="/">Home</a>
+      <a href="/homepage">Home Page Settings</a>
+      <a href="/collections">Collection Settings</a>
+      <a href="/products">Product Settings</a>
+    </div>
+    
+    <!-- Global Collection Settings Info Card -->
+    <div class="card">
+      <h2>Global Collection Settings</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        These are your default settings that will override the settings in Shopify. 
+        It might take several days before the results appear in Google search results, 
+        depending on how often Google indexes your site.
+      </p>
+      
+      <div>
+        <label for="collectionTitle">Meta Title Template</label>
+        <textarea id="collectionTitle">{{collectionTitle}} - {{season}} {{year}} Collection | {{storeName}}</textarea>
+        <div class="character-count">
+          <span id="collectionTitleCount">56</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div>
+        <label for="collectionDescription">Meta Description Template</label>
+        <textarea id="collectionDescription">Explore our {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on selected items!{{else}}New arrivals now available.{{endif}}</textarea>
+        <div class="character-count">
+          <span id="collectionDescriptionCount">125</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div style="margin-top: 15px; display: flex; gap: 10px;">
+        <button id="saveGlobalTemplates">Save Collection Templates</button>
+        <button id="previewCollectionBtn">Preview in Search</button>
+      </div>
+    </div>
+    
+    <!-- Search Preview -->
+    <div class="card" id="collectionSearchPreview">
+      <h3>Google Search Preview</h3>
+      <div class="google-preview">
+        <div class="google-preview-title" id="collectionPreviewTitle">Summer Collection - Summer 2025 Collection | Your Store</div>
+        <div class="google-preview-url">https://your-store.myshopify.com/collections/summer</div>
+        <div class="google-preview-description" id="collectionPreviewDescription">
+          Explore our Summer Collection for Summer 2025. Save up to 40% on selected items!
+        </div>
+      </div>
+    </div>
+    
+    <!-- Custom Rules for Collections -->
+    <div class="card">
+      <h2>Custom Rules</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        Create custom rules for specific collections to override global settings. 
+        Search for collections by name and schedule rules with start and end dates.
+      </p>
+      
+      <button id="createCollectionRuleBtn" style="margin-bottom: 20px;">Create Custom Rule</button>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Collection</th>
+            <th>Products</th>
+            <th>Status</th>
+            <th>Schedule</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div style="font-weight: bold;">Summer Essentials</div>
+              <div style="font-size: 12px; color: #637381;">summer-essentials</div>
+            </td>
+            <td>24</td>
+            <td><span class="badge green">Active</span></td>
+            <td>No end date</td>
+            <td>
+              <button class="edit-btn" data-id="summer-essentials" data-name="Summer Essentials">Edit</button>
+              <button class="reset-btn" data-id="summer-essentials" data-name="Summer Essentials" style="background: #fd5749;">Delete</button>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div style="font-weight: bold;">Sale Items</div>
+              <div style="font-size: 12px; color: #637381;">sale-items</div>
+            </td>
+            <td>18</td>
+            <td><span class="badge blue">Scheduled</span></td>
+            <td>May 1 - Jun 15, 2025</td>
+            <td>
+              <button class="edit-btn" data-id="sale-items" data-name="Sale Items">Edit</button>
+              <button class="reset-btn" data-id="sale-items" data-name="Sale Items" style="background: #fd5749;">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Scheduling Section -->
+    <div class="card">
+      <h2>Scheduled Global Template Changes</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        Schedule updates to your global collection meta tags to automatically go live on a specific date.
+        Perfect for seasonal promotions and sales events.
+      </p>
+      
+      <div style="background-color: #f4f6f8; padding: 20px; border-radius: 4px; margin-bottom: 20px;">
+        <div style="font-weight: bold; margin-bottom: 10px;">No scheduled changes for collections.</div>
+        <button id="scheduleNewChange" style="background-color: #5c6ac4;">Schedule a Template Change</button>
+      </div>
+    </div>
+    
+    <!-- Variable Reference -->
+    <div class="card">
+      <h2>Available Variables</h2>
+      
+      <div class="two-columns">
+        <div>
+          <h3>Basic Variables</h3>
+          <div style="margin-bottom: 15px;">
+            <code>{{storeName}}</code> - Your store's name<br />
+            <code>{{year}}</code> - Current year (e.g., 2025)<br />
+            <code>{{season}}</code> - Current season (Spring, Summer, Fall, Winter)
+          </div>
+          
+          <h3>Collection Variables</h3>
+          <div style="margin-bottom: 15px;">
+            <code>{{collectionTitle}}</code> - The collection's title<br />
+            <code>{{collectionDescription}}</code> - Short excerpt from collection description<br />
+            <code>{{productsCount}}</code> - Number of products in the collection
+          </div>
+        </div>
+        
+        <div>
+          <h3>Discount Variables</h3>
+          <div style="margin-bottom: 15px;">
+            <code>{{hasDiscount}}</code> - Boolean flag if any products have discounts<br />
+            <code>{{maxDiscountPercentage}}</code> - Highest discount percentage<br />
+            <code>{{discountRange}}</code> - Range of discounts (e.g., "10-30%")<br />
+            <code>{{discountedCount}}</code> - Number of discounted products
+          </div>
+          
+          <h3>Conditional Logic</h3>
+          <div style="margin-bottom: 15px;">
+            <code>{{if hasDiscount}}</code> Sale text here <code>{{else}}</code> Regular text here <code>{{endif}}</code>
+          </div>
+          
+          <h3>Format Modifiers</h3>
+          <div style="margin-bottom: 15px;">
+            <code>{{collectionTitle:uppercase}}</code> - Convert to uppercase<br />
+            <code>{{collectionTitle:lowercase}}</code> - Convert to lowercase
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Edit Meta Tags for <span id="editModalCollection">Collection</span></h2>
+      
+      <form id="editForm">
+        <input type="hidden" id="editCollectionId" value="">
+        
+        <div>
+          <label for="editTitle">Meta Title Template</label>
+          <textarea id="editTitle">{{collectionTitle}} - {{season}} {{year}} Collection | Your Store</textarea>
+        </div>
+        
+        <div>
+          <label for="editDescription">Meta Description Template</label>
+          <textarea id="editDescription">Explore our {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on selected items!{{else}}New arrivals now available.{{endif}}</textarea>
+        </div>
+        
+        <div class="google-preview">
+          <h3>Search Preview</h3>
+          <div class="google-preview-title" id="editPreviewTitle">Collection Title - Summer 2025 Collection | Your Store</div>
+          <div class="google-preview-url">https://your-store.myshopify.com/collections/collection-handle</div>
+          <div class="google-preview-description" id="editPreviewDescription">
+            Explore our Collection Title for Summer 2025. Save up to 30% on selected items!
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="button secondary" id="editCancel">Cancel</button>
+          <button type="button" class="button" id="editPreview">Preview</button>
+          <button type="submit" class="button">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Reset Modal -->
+  <div id="resetModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Remove Custom Template</h2>
+      
+      <p>Are you sure you want to remove <strong id="resetModalCollection">Collection</strong> from the exclusions list and reset it to use global templates?</p>
+      
+      <div class="form-actions">
+        <button type="button" class="button secondary" id="resetCancel">Cancel</button>
+        <button type="button" class="button danger" id="resetConfirm">Reset to Global Templates</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Schedule Modal -->
+  <div id="scheduleModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Schedule Template Changes</h2>
+      
+      <form id="scheduleForm">
+        <div>
+          <label for="scheduleTitle">Meta Title Template</label>
+          <textarea id="scheduleTitle">{{collectionTitle}} - {{season}} {{year}} Collection | {{storeName}}</textarea>
+        </div>
+        
+        <div>
+          <label for="scheduleDescription">Meta Description Template</label>
+          <textarea id="scheduleDescription">Explore our {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on selected items!{{else}}New arrivals now available.{{endif}}</textarea>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; margin-top: 20px;">
+          <div style="flex: 1;">
+            <label for="scheduleStart">Start Date</label>
+            <input type="date" id="scheduleStart" class="date-picker" style="width: 100%;">
+          </div>
+          <div style="flex: 1;">
+            <label for="scheduleEnd">End Date (Optional)</label>
+            <input type="date" id="scheduleEnd" class="date-picker" style="width: 100%;">
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="margin-bottom: 10px;">
+            <input type="checkbox" id="scheduleOverrideGlobal" checked>
+            <label for="scheduleOverrideGlobal" style="display: inline; font-weight: normal;">Override global settings</label>
+          </div>
+          <div>
+            <input type="checkbox" id="scheduleOverrideCustom" checked>
+            <label for="scheduleOverrideCustom" style="display: inline; font-weight: normal;">Override custom rules</label>
+          </div>
+        </div>
+        
+        <div class="google-preview">
+          <h3>Search Preview</h3>
+          <div class="google-preview-title" id="schedulePreviewTitle">Collection Title - Summer 2025 Collection | Your Store</div>
+          <div class="google-preview-url">https://your-store.myshopify.com/collections/collection-handle</div>
+          <div class="google-preview-description" id="schedulePreviewDescription">
+            Explore our Collections for Summer 2025. Save up to 30% on selected items!
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="button secondary" id="scheduleCancel">Cancel</button>
+          <button type="button" class="button" id="schedulePreview">Preview</button>
+          <button type="submit" class="button">Schedule Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Custom Rule Modal for Collections -->
+  <div id="collectionRuleModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Create Custom Rule for Collection</h2>
+      
+      <form id="collectionRuleForm">
+        <div style="margin-bottom: 15px;">
+          <label for="collectionSearch">Search for Collection</label>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="collectionSearch" style="flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #ddd;" placeholder="Start typing collection name...">
+            <button type="button" class="button" id="searchCollectionBtn">Search</button>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+          <strong>Selected Collection:</strong> <span id="selectedCollection">None</span>
+        </div>
+        
+        <div>
+          <label for="collectionRuleTitle">Meta Title Template</label>
+          <textarea id="collectionRuleTitle">{{collectionTitle}} - SPECIAL {{season}} {{year}} | {{storeName}}</textarea>
+        </div>
+        
+        <div>
+          <label for="collectionRuleDescription">Meta Description Template</label>
+          <textarea id="collectionRuleDescription">Explore our special {{collectionTitle}} for {{season}} {{year}}. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} on these exclusive items!{{endif}}</textarea>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; margin-top: 20px;">
+          <div style="flex: 1;">
+            <label for="collectionRuleStart">Start Date</label>
+            <input type="date" id="collectionRuleStart" class="date-picker" style="width: 100%;">
+          </div>
+          <div style="flex: 1;">
+            <label for="collectionRuleEnd">End Date (Optional)</label>
+            <input type="date" id="collectionRuleEnd" class="date-picker" style="width: 100%;">
+            <div style="font-size: 12px; color: #637381; margin-top: 5px;">Leave empty for no end date</div>
+          </div>
+        </div>
+        
+        <div class="google-preview">
+          <h3>Search Preview</h3>
+          <div class="google-preview-title" id="collectionRulePreviewTitle">Summer Collection - SPECIAL Summer 2025 | Your Store</div>
+          <div class="google-preview-url">https://your-store.myshopify.com/collections/summer-collection</div>
+          <div class="google-preview-description" id="collectionRulePreviewDescription">
+            Explore our special Summer Collection for Summer 2025. Save up to 40% on these exclusive items!
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="button secondary" id="collectionRuleCancel">Cancel</button>
+          <button type="button" class="button" id="collectionRulePreview">Preview</button>
+          <button type="submit" class="button">Create Rule</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    // Modal functionality
+    const editModal = document.getElementById('editModal');
+    const resetModal = document.getElementById('resetModal');
+    const scheduleModal = document.getElementById('scheduleModal');
+    
+    // Get all close buttons
+    const closeButtons = document.querySelectorAll('.close');
+    closeButtons.forEach(button => {
+      button.onclick = function() {
+        editModal.style.display = 'none';
+        resetModal.style.display = 'none';
+        scheduleModal.style.display = 'none';
+      }
+    });
+    
+    // Simple character counter
+    document.getElementById('collectionTitle').addEventListener('input', function() {
+      document.getElementById('collectionTitleCount').textContent = this.value.length;
+    });
+    
+    document.getElementById('collectionDescription').addEventListener('input', function() {
+      document.getElementById('collectionDescriptionCount').textContent = this.value.length;
+    });
+    
+    // Preview button
+    document.getElementById('previewCollectionBtn').addEventListener('click', function() {
+      const title = document.getElementById('collectionTitle').value
+        .replace(/{{collectionTitle}}/g, 'Summer Collection')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{storeName}}/g, 'Your Store');
+      
+      const description = document.getElementById('collectionDescription').value
+        .replace(/{{collectionTitle}}/g, 'Summer Collection')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{if hasDiscount}}/g, '')
+        .replace(/{{maxDiscountPercentage}}/g, '40%')
+        .replace(/{{else}}/g, '')
+        .replace(/{{endif}}/g, '');
+      
+      document.getElementById('collectionPreviewTitle').textContent = title;
+      document.getElementById('collectionPreviewDescription').textContent = description;
+    });
+    
+    // Save global templates
+    document.getElementById('saveGlobalTemplates').addEventListener('click', function() {
+      alert('Global templates saved successfully!');
+    });
+    
+    // Schedule new changes
+    document.getElementById('scheduleNewChange').addEventListener('click', function() {
+      // Set default schedule date to tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      document.getElementById('scheduleStart').valueAsDate = tomorrow;
+      
+      scheduleModal.style.display = 'block';
+    });
+    
+    // Edit functionality
+    const editButtons = document.querySelectorAll('.edit-btn');
+    editButtons.forEach(button => {
+      button.onclick = function() {
+        const collectionId = this.getAttribute('data-id');
+        const collectionName = this.getAttribute('data-name');
+        
+        document.getElementById('editCollectionId').value = collectionId;
+        document.getElementById('editModalCollection').textContent = collectionName;
+        
+        // In a real app, we would fetch the current template data here
+        // For demo purposes, we're using default values
+        
+        editModal.style.display = 'block';
+      }
+    });
+    
+    // Reset functionality
+    const resetButtons = document.querySelectorAll('.reset-btn');
+    resetButtons.forEach(button => {
+      button.onclick = function() {
+        const collectionId = this.getAttribute('data-id');
+        const collectionName = this.getAttribute('data-name');
+        
+        document.getElementById('resetModalCollection').textContent = collectionName;
+        
+        resetModal.style.display = 'block';
+      }
+    });
+    
+    // Cancel buttons
+    document.getElementById('editCancel').onclick = function() {
+      editModal.style.display = 'none';
+    }
+    
+    document.getElementById('resetCancel').onclick = function() {
+      resetModal.style.display = 'none';
+    }
+    
+    document.getElementById('scheduleCancel').onclick = function() {
+      scheduleModal.style.display = 'none';
+    }
+    
+    // Preview functionality
+    document.getElementById('editPreview').onclick = async function() {
+      const title = document.getElementById('editTitle').value;
+      const description = document.getElementById('editDescription').value;
+      
+      // Call the preview API with the template
+      // For demo purposes, we'll just update with placeholder values
+      document.getElementById('editPreviewTitle').textContent = title
+        .replace(/{{collectionTitle}}/g, document.getElementById('editModalCollection').textContent)
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{storeName}}/g, 'Your Store');
+      
+      document.getElementById('editPreviewDescription').textContent = description
+        .replace(/{{collectionTitle}}/g, document.getElementById('editModalCollection').textContent)
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{if hasDiscount}}/g, '')
+        .replace(/{{maxDiscountPercentage}}/g, '30%')
+        .replace(/{{else}}/g, '')
+        .replace(/{{endif}}/g, '');
+    }
+    
+    document.getElementById('schedulePreview').onclick = async function() {
+      const title = document.getElementById('scheduleTitle').value;
+      const description = document.getElementById('scheduleDescription').value;
+      
+      // Similar preview functionality
+      document.getElementById('schedulePreviewTitle').textContent = title
+        .replace(/{{collectionTitle}}/g, 'Collection Title')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{storeName}}/g, 'Your Store');
+      
+      document.getElementById('schedulePreviewDescription').textContent = description
+        .replace(/{{collectionTitle}}/g, 'Collections')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{if hasDiscount}}/g, '')
+        .replace(/{{maxDiscountPercentage}}/g, '30%')
+        .replace(/{{else}}/g, '')
+        .replace(/{{endif}}/g, '');
+    }
+    
+    // Form submissions
+    document.getElementById('editForm').onsubmit = async function(e) {
+      e.preventDefault();
+      
+      const collectionId = document.getElementById('editCollectionId').value;
+      const title = document.getElementById('editTitle').value;
+      const description = document.getElementById('editDescription').value;
+      
+      // In a real app, we would save the data via API
+      alert('Changes saved successfully!');
+      editModal.style.display = 'none';
+    }
+    
+    document.getElementById('scheduleForm').onsubmit = async function(e) {
+      e.preventDefault();
+      
+      const title = document.getElementById('scheduleTitle').value;
+      const description = document.getElementById('scheduleDescription').value;
+      const startDate = document.getElementById('scheduleStart').value;
+      const endDate = document.getElementById('scheduleEnd').value;
+      
+      // In a real app, we would schedule via API
+      alert('Changes scheduled successfully!');
+      scheduleModal.style.display = 'none';
+    }
+    
+    document.getElementById('resetConfirm').onclick = async function() {
+      // In a real app, we would reset via API
+      alert('Collection reset to global templates');
+      resetModal.style.display = 'none';
+    }
+    
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+      if (event.target == editModal) {
+        editModal.style.display = 'none';
+      } else if (event.target == resetModal) {
+        resetModal.style.display = 'none';
+      } else if (event.target == scheduleModal) {
+        scheduleModal.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
+`;
+
+// Create a simple products page HTML
+const productsHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Settings - Meta Maximus</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f6f6f7;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      padding: 20px;
+    }
+    .nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .nav a {
+      padding: 10px 15px;
+      background: #5c6ac4;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f6f6f7;
+    }
+    
+    .badge.green {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    .badge.blue {
+      background: #d4e8f7;
+      color: #1c6da3;
+    }
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+    button, .button {
+      padding: 6px 12px;
+      background: #5c6ac4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 14px;
+      display: inline-block;
+    }
+    .button.secondary {
+      background: #f4f6f8;
+      color: #212b36;
+      border: 1px solid #c4cdd5;
+    }
+    .button.danger {
+      background: #fd5749;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 50%;
+      max-width: 600px;
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover {
+      color: black;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      min-height: 80px;
+      margin-bottom: 15px;
+    }
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .google-preview {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background: #f9f9f9;
+      max-width: 600px;
+      font-family: arial, sans-serif;
+    }
+    .google-preview-title {
+      color: #1a0dab;
+      font-size: 18px;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .google-preview-url {
+      color: #006621;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+    .google-preview-description {
+      color: #545454;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .date-picker {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      margin-bottom: 15px;
+    }
+    .two-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+  
+    .character-count {
+      font-size: 12px;
+      margin-bottom: 15px;
+      color: #637381;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .badge.good {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    .badge.warning {
+      background: #ffea8a;
+      color: #8a6116;
+    }
+    .badge.bad {
+      background: #ffd2d2;
+      color: #bf0711;
+    }</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Product Settings</h1>
+    
+    <div class="nav">
+      <a href="/">Home</a>
+      <a href="/homepage">Home Page Settings</a>
+      <a href="/collections">Collection Settings</a>
+      <a href="/products">Product Settings</a>
+    </div>
+    
+    <!-- Global Product Settings Info Card -->
+    <div class="card">
+      <h2>Global Product Settings</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        These are your default settings that will override the settings in Shopify. 
+        It might take several days before the results appear in Google search results, 
+        depending on how often Google indexes your site.
+      </p>
+      
+      <div>
+        <label for="productTitle">Meta Title Template</label>
+        <textarea id="productTitle">{{productTitle}} - {{season}} {{year}} | {{storeName}}</textarea>
+        <div class="character-count">
+          <span id="productTitleCount">46</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div>
+        <label for="productDescription">Meta Description Template</label>
+        <textarea id="productDescription">Shop our premium {{productTitle}} for {{season}} {{year}}. {{if hasDiscount}}Now on sale with {{maxDiscountPercentage}} off!{{else}}High-quality product from {{productVendor}}.{{endif}}</textarea>
+        <div class="character-count">
+          <span id="productDescriptionCount">135</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div style="margin-top: 15px; display: flex; gap: 10px;">
+        <button id="saveGlobalTemplates">Save Product Templates</button>
+        <button id="previewProductBtn">Preview in Search</button>
+      </div>
+    </div>
+    
+    <!-- Search Preview -->
+    <div class="card" id="productSearchPreview">
+      <h3>Google Search Preview</h3>
+      <div class="google-preview">
+        <div class="google-preview-title" id="productPreviewTitle">Premium Cotton T-Shirt - Summer 2025 | Your Store</div>
+        <div class="google-preview-url">https://your-store.myshopify.com/products/premium-cotton-t-shirt</div>
+        <div class="google-preview-description" id="productPreviewDescription">
+          Shop our premium Premium Cotton T-Shirt for Summer 2025. Now on sale with 25% off!
+        </div>
+      </div>
+    </div>
+    
+    <!-- Custom Rules for Products -->
+    <div class="card">
+      <h2>Custom Rules</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        Create conditional rules to override global settings for specific products. Rules will be applied when 
+        product tags match your conditions. Rules can be scheduled or run indefinitely.
+      </p>
+      
+      <button id="createProductRuleBtn" style="margin-bottom: 20px;">Create Custom Rule</button>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Rule Name</th>
+            <th>Condition</th>
+            <th>Status</th>
+            <th>Schedule</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div style="font-weight: bold;">Summer Sale</div>
+            </td>
+            <td>Tag equals "summer-sale"</td>
+            <td><span class="badge green">Active</span></td>
+            <td>Apr 15 - Jun 30, 2025</td>
+            <td>
+              <button class="edit-btn" data-id="summer-sale" data-name="Summer Sale">Edit</button>
+              <button class="reset-btn" data-id="summer-sale" data-name="Summer Sale" style="background: #fd5749;">Delete</button>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div style="font-weight: bold;">New Arrivals</div>
+            </td>
+            <td>Tag equals "new-arrival"</td>
+            <td><span class="badge blue">Scheduled</span></td>
+            <td>Starts May 1, 2025</td>
+            <td>
+              <button class="edit-btn" data-id="new-arrivals" data-name="New Arrivals">Edit</button>
+              <button class="reset-btn" data-id="new-arrivals" data-name="New Arrivals" style="background: #fd5749;">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Scheduling Section -->
+    <div class="card">
+      <h2>Scheduled Global Template Changes</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        Schedule updates to your global product meta tags to automatically go live on a specific date.
+        Perfect for seasonal promotions and sales events.
+      </p>
+      
+      <div style="background-color: #f4f6f8; padding: 20px; border-radius: 4px; margin-bottom: 20px;">
+        <div style="font-weight: bold; margin-bottom: 10px;">No scheduled changes for products.</div>
+        <button id="scheduleNewChange" style="background-color: #5c6ac4;">Schedule a Template Change</button>
+      </div>
+    </div>
+    
+    <!-- Variable Reference -->
+    <div class="card">
+      <h2>Available Variables</h2>
+      
+      <div class="two-columns">
+        <div>
+          <h3>Basic Variables</h3>
+          <div style="margin-bottom: 15px;">
+            <code>{{storeName}}</code> - Your store's name<br />
+            <code>{{year}}</code> - Current year (e.g., 2025)<br />
+            <code>{{season}}</code> - Current season (Spring, Summer, Fall, Winter)
+          </div>
+          
+          <h3>Product Variables</h3>
+          <div style="margin-bottom: 15px;">
+            <code>{{productTitle}}</code> - The product's title<br />
+            <code>{{productType}}</code> - The product's type<br />
+            <code>{{productVendor}}</code> - The product's vendor/brand<br />
+            <code>{{productPrice}}</code> - Current product price<br />
+            <code>{{comparePrice}}</code> - Compare-at price if available
+          </div>
+        </div>
+        
+        <div>
+          <h3>Discount Variables</h3>
+          <div style="margin-bottom: 15px;">
+            <code>{{hasDiscount}}</code> - Boolean flag if the product has a discount<br />
+            <code>{{discountPercentage}}</code> - Discount percentage<br />
+            <code>{{discountAmount}}</code> - Discount amount in currency
+          </div>
+          
+          <h3>Conditional Logic</h3>
+          <div style="margin-bottom: 15px;">
+            <code>{{if hasDiscount}}</code> Sale text here <code>{{else}}</code> Regular text here <code>{{endif}}</code>
+          </div>
+          
+          <h3>Format Modifiers</h3>
+          <div style="margin-bottom: 15px;">
+            <code>{{productTitle:uppercase}}</code> - Convert to uppercase<br />
+            <code>{{productTitle:lowercase}}</code> - Convert to lowercase
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Edit Meta Tags for <span id="editModalProduct">Product</span></h2>
+      
+      <form id="editForm">
+        <input type="hidden" id="editProductId" value="">
+        
+        <div>
+          <label for="editTitle">Meta Title Template</label>
+          <textarea id="editTitle">{{productTitle}} - {{season}} {{year}} | Your Store</textarea>
+        </div>
+        
+        <div>
+          <label for="editDescription">Meta Description Template</label>
+          <textarea id="editDescription">Shop our premium {{productTitle}} for {{season}} {{year}}. {{if hasDiscount}}Now on sale with {{discountPercentage}} off!{{else}}High-quality product from {{productVendor}}.{{endif}}</textarea>
+        </div>
+        
+        <div class="google-preview">
+          <h3>Search Preview</h3>
+          <div class="google-preview-title" id="editPreviewTitle">Premium Cotton T-Shirt - Summer 2025 | Your Store</div>
+          <div class="google-preview-url">https://your-store.myshopify.com/products/premium-cotton-t-shirt</div>
+          <div class="google-preview-description" id="editPreviewDescription">
+            Shop our premium Premium Cotton T-Shirt for Summer 2025. Now on sale with 25% off!
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="button secondary" id="editCancel">Cancel</button>
+          <button type="button" class="button" id="editPreview">Preview</button>
+          <button type="submit" class="button">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Reset Modal -->
+  <div id="resetModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Remove Custom Template</h2>
+      
+      <p>Are you sure you want to remove <strong id="resetModalProduct">Product</strong> from the exclusions list and reset it to use global templates?</p>
+      
+      <div class="form-actions">
+        <button type="button" class="button secondary" id="resetCancel">Cancel</button>
+        <button type="button" class="button danger" id="resetConfirm">Reset to Global Templates</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Schedule Modal -->
+  <div id="scheduleModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Schedule Template Changes</h2>
+      
+      <form id="scheduleForm">
+        <div>
+          <label for="scheduleTitle">Meta Title Template</label>
+          <textarea id="scheduleTitle">{{productTitle}} - SALE {{season}} {{year}} | Your Store</textarea>
+        </div>
+        
+        <div>
+          <label for="scheduleDescription">Meta Description Template</label>
+          <textarea id="scheduleDescription">Limited time offer! Shop our premium {{productTitle}} for {{season}} {{year}}. Save {{discountPercentage}} for a limited time only!</textarea>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; margin-top: 20px;">
+          <div style="flex: 1;">
+            <label for="scheduleStart">Start Date</label>
+            <input type="date" id="scheduleStart" class="date-picker" style="width: 100%;">
+          </div>
+          <div style="flex: 1;">
+            <label for="scheduleEnd">End Date (Optional)</label>
+            <input type="date" id="scheduleEnd" class="date-picker" style="width: 100%;">
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <div style="margin-bottom: 10px;">
+            <input type="checkbox" id="scheduleOverrideGlobal" checked>
+            <label for="scheduleOverrideGlobal" style="display: inline; font-weight: normal;">Override global settings</label>
+          </div>
+          <div>
+            <input type="checkbox" id="scheduleOverrideCustom" checked>
+            <label for="scheduleOverrideCustom" style="display: inline; font-weight: normal;">Override custom rules</label>
+          </div>
+        </div>
+        
+        <div class="google-preview">
+          <h3>Search Preview</h3>
+          <div class="google-preview-title" id="schedulePreviewTitle">Premium Cotton T-Shirt - SALE Summer 2025 | Your Store</div>
+          <div class="google-preview-url">https://your-store.myshopify.com/products/premium-cotton-t-shirt</div>
+          <div class="google-preview-description" id="schedulePreviewDescription">
+            Limited time offer! Shop our premium Premium Cotton T-Shirt for Summer 2025. Save 25% for a limited time only!
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="button secondary" id="scheduleCancel">Cancel</button>
+          <button type="button" class="button" id="schedulePreview">Preview</button>
+          <button type="submit" class="button">Schedule Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Custom Rule Modal -->
+  <div id="customRuleModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Create Custom Rule</h2>
+      
+      <form id="customRuleForm">
+        <div style="margin-bottom: 15px;">
+          <label for="ruleName">Rule Name</label>
+          <input type="text" id="ruleName" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;" placeholder="E.g., Summer Sale Products">
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <label>Condition</label>
+          <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+            <select style="padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+              <option>Product tag</option>
+              <option>Product type</option>
+              <option>Product vendor</option>
+              <option>Product price</option>
+            </select>
+            <select style="padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+              <option>equals</option>
+              <option>contains</option>
+              <option>starts with</option>
+              <option>ends with</option>
+              <option>greater than</option>
+              <option>less than</option>
+            </select>
+            <input type="text" style="flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #ddd;" placeholder="Value">
+          </div>
+        </div>
+        
+        <div>
+          <label for="ruleTitle">Meta Title Template</label>
+          <textarea id="ruleTitle">{{productTitle}} - SPECIAL {{season}} {{year}} | {{storeName}}</textarea>
+        </div>
+        
+        <div>
+          <label for="ruleDescription">Meta Description Template</label>
+          <textarea id="ruleDescription">Check out our {{productTitle}} - part of our special collection for {{season}} {{year}}. {{if hasDiscount}}Now {{discountPercentage}} off!{{endif}}</textarea>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 20px; margin-top: 20px;">
+          <div style="flex: 1;">
+            <label for="ruleStart">Start Date</label>
+            <input type="date" id="ruleStart" class="date-picker" style="width: 100%;">
+          </div>
+          <div style="flex: 1;">
+            <label for="ruleEnd">End Date (Optional)</label>
+            <input type="date" id="ruleEnd" class="date-picker" style="width: 100%;">
+            <div style="font-size: 12px; color: #637381; margin-top: 5px;">Leave empty for no end date</div>
+          </div>
+        </div>
+        
+        <div class="google-preview">
+          <h3>Search Preview</h3>
+          <div class="google-preview-title" id="rulePreviewTitle">Premium Cotton T-Shirt - SPECIAL Summer 2025 | Your Store</div>
+          <div class="google-preview-url">https://your-store.myshopify.com/products/premium-cotton-t-shirt</div>
+          <div class="google-preview-description" id="rulePreviewDescription">
+            Check out our Premium Cotton T-Shirt - part of our special collection for Summer 2025. Now 25% off!
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="button secondary" id="ruleCancel">Cancel</button>
+          <button type="button" class="button" id="rulePreview">Preview</button>
+          <button type="submit" class="button">Create Rule</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    // Modal functionality
+    const editModal = document.getElementById('editModal');
+    const resetModal = document.getElementById('resetModal');
+    const scheduleModal = document.getElementById('scheduleModal');
+    
+    // Get all close buttons
+    const closeButtons = document.querySelectorAll('.close');
+    closeButtons.forEach(button => {
+      button.onclick = function() {
+        editModal.style.display = 'none';
+        resetModal.style.display = 'none';
+        scheduleModal.style.display = 'none';
+      }
+    });
+    
+    // Simple character counter
+    document.getElementById('productTitle').addEventListener('input', function() {
+      document.getElementById('productTitleCount').textContent = this.value.length;
+    });
+    
+    document.getElementById('productDescription').addEventListener('input', function() {
+      document.getElementById('productDescriptionCount').textContent = this.value.length;
+    });
+    
+    // Preview button
+    document.getElementById('previewProductBtn').addEventListener('click', function() {
+      const title = document.getElementById('productTitle').value
+        .replace(/{{productTitle}}/g, 'Premium Cotton T-Shirt')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{storeName}}/g, 'Your Store');
+      
+      const description = document.getElementById('productDescription').value
+        .replace(/{{productTitle}}/g, 'Premium Cotton T-Shirt')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{if hasDiscount}}/g, '')
+        .replace(/{{maxDiscountPercentage}}/g, '25%')
+        .replace(/{{else}}/g, '')
+        .replace(/{{productVendor}}/g, 'Fashion Brand')
+        .replace(/{{endif}}/g, '');
+      
+      document.getElementById('productPreviewTitle').textContent = title;
+      document.getElementById('productPreviewDescription').textContent = description;
+    });
+    
+    // Save global templates
+    document.getElementById('saveGlobalTemplates').addEventListener('click', function() {
+      alert('Global templates saved successfully!');
+    });
+    
+    // Schedule new changes
+    document.getElementById('scheduleNewChange').addEventListener('click', function() {
+      // Set default schedule date to tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      document.getElementById('scheduleStart').valueAsDate = tomorrow;
+      
+      scheduleModal.style.display = 'block';
+    });
+    
+    // Edit functionality
+    const editButtons = document.querySelectorAll('.edit-btn');
+    editButtons.forEach(button => {
+      button.onclick = function() {
+        const productId = this.getAttribute('data-id');
+        const productName = this.getAttribute('data-name');
+        
+        document.getElementById('editProductId').value = productId;
+        document.getElementById('editModalProduct').textContent = productName;
+        
+        // In a real app, we would fetch the current template data here
+        // For demo purposes, we're using default values
+        
+        editModal.style.display = 'block';
+      }
+    });
+    
+    // Reset functionality
+    const resetButtons = document.querySelectorAll('.reset-btn');
+    resetButtons.forEach(button => {
+      button.onclick = function() {
+        const productId = this.getAttribute('data-id');
+        const productName = this.getAttribute('data-name');
+        
+        document.getElementById('resetModalProduct').textContent = productName;
+        
+        resetModal.style.display = 'block';
+      }
+    });
+    
+    // Cancel buttons
+    document.getElementById('editCancel').onclick = function() {
+      editModal.style.display = 'none';
+    }
+    
+    document.getElementById('resetCancel').onclick = function() {
+      resetModal.style.display = 'none';
+    }
+    
+    document.getElementById('scheduleCancel').onclick = function() {
+      scheduleModal.style.display = 'none';
+    }
+    
+    // Preview functionality
+    document.getElementById('editPreview').onclick = async function() {
+      const title = document.getElementById('editTitle').value;
+      const description = document.getElementById('editDescription').value;
+      
+      // Call the preview API with the template
+      // For demo purposes, we'll just update with placeholder values
+      document.getElementById('editPreviewTitle').textContent = title
+        .replace(/{{productTitle}}/g, document.getElementById('editModalProduct').textContent)
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{storeName}}/g, 'Your Store');
+      
+      document.getElementById('editPreviewDescription').textContent = description
+        .replace(/{{productTitle}}/g, document.getElementById('editModalProduct').textContent)
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{if hasDiscount}}/g, '')
+        .replace(/{{discountPercentage}}/g, '25%')
+        .replace(/{{else}}/g, '')
+        .replace(/{{productVendor}}/g, 'Fashion Brand')
+        .replace(/{{endif}}/g, '');
+    }
+    
+    document.getElementById('schedulePreview').onclick = async function() {
+      const title = document.getElementById('scheduleTitle').value;
+      const description = document.getElementById('scheduleDescription').value;
+      
+      // Similar preview functionality
+      document.getElementById('schedulePreviewTitle').textContent = title
+        .replace(/{{productTitle}}/g, 'Premium Cotton T-Shirt')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{storeName}}/g, 'Your Store');
+      
+      document.getElementById('schedulePreviewDescription').textContent = description
+        .replace(/{{productTitle}}/g, 'Premium Cotton T-Shirt')
+        .replace(/{{season}}/g, 'Summer')
+        .replace(/{{year}}/g, '2025')
+        .replace(/{{discountPercentage}}/g, '25%');
+    }
+    
+    // Form submissions
+    document.getElementById('editForm').onsubmit = async function(e) {
+      e.preventDefault();
+      
+      const productId = document.getElementById('editProductId').value;
+      const title = document.getElementById('editTitle').value;
+      const description = document.getElementById('editDescription').value;
+      
+      // In a real app, we would save the data via API
+      alert('Changes saved successfully!');
+      editModal.style.display = 'none';
+    }
+    
+    document.getElementById('scheduleForm').onsubmit = async function(e) {
+      e.preventDefault();
+      
+      const title = document.getElementById('scheduleTitle').value;
+      const description = document.getElementById('scheduleDescription').value;
+      const startDate = document.getElementById('scheduleStart').value;
+      const endDate = document.getElementById('scheduleEnd').value;
+      
+      // In a real app, we would schedule via API
+      alert('Changes scheduled successfully!');
+      scheduleModal.style.display = 'none';
+    }
+    
+    document.getElementById('resetConfirm').onclick = async function() {
+      // In a real app, we would reset via API
+      alert('Product reset to global templates');
+      resetModal.style.display = 'none';
+    }
+    
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+      if (event.target == editModal) {
+        editModal.style.display = 'none';
+      } else if (event.target == resetModal) {
+        resetModal.style.display = 'none';
+      } else if (event.target == scheduleModal) {
+        scheduleModal.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
+`;
+
+// Home page route (authenticated)
+app.get('/', async (req, res) => {
+  const shop = req.query.shop || process.env.SHOP;
+  
+  if (!shop) {
+    return res.status(400).send('Missing shop parameter. Please add ?shop=your-shop.myshopify.com to the URL.');
+  }
+  
+  // For development, we'll temporarily skip authentication checks
+  const skipAuth = process.env.NODE_ENV === 'development';
+  
+  // Check if we have a session for this shop
+  const sessionKey = `${shop}_offline`;
+  const session = SESSION_STORAGE.get(sessionKey);
+  
+  if (!skipAuth && !session) {
+    // Not authenticated, redirect to auth
+    return res.redirect(`/auth?shop=${shop}`);
+  }
+  
+  // Serve the dashboard HTML
+  res.send(dashboardHTML);
+});
+
+// Templates route
+app.get('/templates', (req, res) => {
+  // For a real implementation, this would check for authentication
+  res.send(templatesHTML);
+});
+
+// Collections route
+app.get('/collections', (req, res) => {
+  // For a real implementation, this would check for authentication
+  res.send(collectionsHTML);
+});
+
+// Products route
+app.get('/products', (req, res) => {
+  // For a real implementation, this would check for authentication
+  res.send(productsHTML);
+});
+
+// Create a simple homepage meta fields HTML
+const homepageHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home Page Settings - Meta Maximus</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f6f6f7;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      padding: 20px;
+    }
+    .nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .nav a {
+      padding: 10px 15px;
+      background: #5c6ac4;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      min-height: 100px;
+      margin-bottom: 5px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    button {
+      padding: 10px 15px;
+      background: #5c6ac4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .badge.good {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    .badge.warning {
+      background: #ffea8a;
+      color: #8a6116;
+    }
+    .badge.bad {
+      background: #ffd2d2;
+      color: #bf0711;
+    }
+    
+    
+    .character-count {
+      font-size: 12px;
+      margin-bottom: 15px;
+      color: #637381;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .badge.good {
+      background: #c9e8d1;
+      color: #108043;
+    }
+    .badge.warning {
+      background: #ffea8a;
+      color: #8a6116;
+    }
+    .badge.bad {
+      background: #ffd2d2;
+      color: #bf0711;
+    }
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+    .preview-section {
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .google-preview {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background: #f9f9f9;
+      max-width: 600px;
+      font-family: arial, sans-serif;
+    }
+    .google-preview-title {
+      color: #1a0dab;
+      font-size: 18px;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .google-preview-url {
+      color: #006621;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+    .google-preview-description {
+      color: #545454;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Home Page Settings</h1>
+    
+    <div class="nav">
+      <a href="/">Home</a>
+      <a href="/homepage">Home Page Settings</a>
+      <a href="/collections">Collection Settings</a>
+      <a href="/products">Product Settings</a>
+    </div>
+    
+    <!-- Global Settings Info Card -->
+    <div class="card">
+      <h2>Global Home Page Settings</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        These are your default settings that will override the settings in Shopify. 
+        It might take several days before the results appear in Google search results, 
+        depending on how often Google indexes your site.
+      </p>
+      
+      <div>
+        <label for="homeTitle">Meta Title Template</label>
+        <textarea id="homeTitle">{{storeName}} - {{season}} {{year}} Collection</textarea>
+        <div class="character-count">
+          <span id="homeTitleCount">43</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div>
+        <label for="homeDescription">Meta Description Template</label>
+        <textarea id="homeDescription">Shop our collection of quality products. {{if hasDiscount}}Save up to {{maxDiscountPercentage}} off with our current sale!{{else}}New items added regularly.{{endif}}</textarea>
+        <div class="character-count">
+          <span id="homeDescriptionCount">110</span> characters 
+          <span class="badge good">Good length</span>
+        </div>
+      </div>
+      
+      <div style="margin-top: 15px; display: flex; gap: 10px;">
+        <button id="saveHomeBtn">Save Home Page Templates</button>
+        <button id="previewHomeBtn">Preview in Search</button>
+      </div>
+    </div>
+    
+    <!-- Search Preview -->
+    <div class="card preview-section" id="searchPreview">
+      <h3>Google Search Preview</h3>
+      <div class="google-preview">
+        <div class="google-preview-title" id="previewTitle">Your Store: Quality Products for 2025</div>
+        <div class="google-preview-url">https://your-store.myshopify.com/</div>
+        <div class="google-preview-description" id="previewDescription">
+          Shop our collection of quality products. Save up to 30% off with our current sale!
+        </div>
+      </div>
+    </div>
+    
+    <!-- Scheduler Section -->
+    <div class="card">
+      <h2>Scheduled Changes</h2>
+      <p style="color: #637381; margin-bottom: 15px;">
+        Schedule meta tag changes to automatically activate on specific dates.
+        This is useful for sales, seasonal campaigns, or any time-limited promotions.
+      </p>
+      
+      <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+        <div style="flex: 1;">
+          <label for="scheduleStart">Start Date</label>
+          <input type="date" id="scheduleStart" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-top: 5px;">
+        </div>
+        <div style="flex: 1;">
+          <label for="scheduleEnd">End Date (Optional)</label>
+          <input type="date" id="scheduleEnd" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-top: 5px;">
+        </div>
+      </div>
+      
+      <div>
+        <label for="scheduleTitle">Scheduled Meta Title Template</label>
+        <textarea id="scheduleTitle" placeholder="Enter the meta title to use during the scheduled period">{{storeName}} - SALE! Up to {{maxDiscountPercentage}} OFF {{season}} {{year}}</textarea>
+      </div>
+      
+      <div>
+        <label for="scheduleDescription">Scheduled Meta Description Template</label>
+        <textarea id="scheduleDescription" placeholder="Enter the meta description to use during the scheduled period">Limited time offer: Save up to {{maxDiscountPercentage}} on our {{season}} collection. Shop now before the sale ends!</textarea>
+      </div>
+      
+      <div style="margin-top: 15px;">
+        <button id="scheduleBtn">Schedule Changes</button>
+      </div>
+    </div>
+    
+    <!-- Variable Reference Card -->
+    <div class="card">
+      <h2>Variable Reference</h2>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+          <h3>Basic Variables</h3>
+          <ul>
+            <li><code>{{year}}</code> - Current year (e.g., 2025)</li>
+            <li><code>{{season}}</code> - Current season (Spring, Summer, Fall, Winter)</li>
+          </ul>
+          
+          <h3>Store Variables</h3>
+          <ul>
+            <li><code>{{storeName}}</code> - Your store's name</li>
+            <li><code>{{storeDomain}}</code> - Store domain</li>
+            <li><code>{{totalProducts}}</code> - Total number of products</li>
+          </ul>
+        </div>
+        
+        <div>
+          <h3>Discount Variables</h3>
+          <ul>
+            <li><code>{{maxDiscountPercentage}}</code> - Highest discount percentage</li>
+            <li><code>{{discountRange}}</code> - Range of discounts (e.g., "20-50%")</li>
+            <li><code>{{hasDiscount}}</code> - Boolean flag for discounts</li>
+            <li><code>{{discountedCount}}</code> - Number of discounted products</li>
+            <li><code>{{avgDiscount}}</code> - Average discount percentage</li>
+          </ul>
+          
+          <h3>Format Modifiers</h3>
+          <ul>
+            <li><code>{{variable:lowercase}}</code> - Convert to lowercase</li>
+            <li><code>{{variable:uppercase}}</code> - Convert to uppercase</li>
+          </ul>
+          
+          <h3>Conditional Logic</h3>
+          <p><code>{{if hasDiscount}}On Sale!{{else}}Regular Price{{endif}}</code></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Simple character counter
+    document.getElementById('homeTitle').addEventListener('input', function() {
+      document.getElementById('homeTitleCount').textContent = this.value.length;
+    });
+    
+    document.getElementById('homeDescription').addEventListener('input', function() {
+      document.getElementById('homeDescriptionCount').textContent = this.value.length;
+    });
+    
+    // Preview button
+    document.getElementById('previewHomeBtn').addEventListener('click', function() {
+      const title = document.getElementById('homeTitle').value
+        .replace('{{storeName}}', 'Your Store')
+        .replace('{{season}}', 'Summer')
+        .replace('{{year}}', '2025');
+      
+      const description = document.getElementById('homeDescription').value
+        .replace('{{if hasDiscount}}', '')
+        .replace('{{maxDiscountPercentage}}', '30%')
+        .replace('{{else}}', '')
+        .replace('{{endif}}', '');
+      
+      document.getElementById('previewTitle').textContent = title;
+      document.getElementById('previewDescription').textContent = description;
+    });
+    
+    // Save button
+    document.getElementById('saveHomeBtn').addEventListener('click', function() {
+      // In a real app, this would save to the server
+      alert('Home page templates saved successfully!');
+    });
+  </script>
+</body>
+</html>
+`;
+
+// Homepage route
+app.get('/homepage', (req, res) => {
+  // For a real implementation, this would check for authentication
+  res.send(homepageHTML);
+});
+
+// Start scheduler service only in production
+// For development, we can manually trigger it via API
+if (process.env.NODE_ENV === 'production') {
+  scheduler.startScheduler();
+}
+
+// API endpoint to check scheduler status
+app.get('/api/scheduler/status', (req, res) => {
+  res.json(scheduler.getSchedulerStatus());
+});
+
+// API endpoint to manually trigger scheduler check
+app.post('/api/scheduler/run', async (req, res) => {
+  try {
+    await scheduler.checkScheduledChanges();
+    res.json({ success: true, message: 'Scheduler check triggered successfully' });
+  } catch (error) {
+    console.error('Error triggering scheduler check:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Start server
+app.listen(port, () => {
+  console.log(`Meta Maximus app listening at http://localhost:${port} (Port: ${port})`);
+});

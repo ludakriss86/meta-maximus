@@ -12,7 +12,7 @@ Meta Maximus is a Shopify app for dynamic SEO meta tag management. It allows sto
    - Dynamic variable substitution with a streamlined, SEO-focused set of variables
    - Variables organized by category (basic, store, product, collection, discount)
    - Conditional logic with if/else/endif syntax
-   - Format modifiers for text transformation
+   - Format modifiers for text transformation (uppercase, lowercase, initialCaps)
    - Enhanced discount calculations including average discount
    - Store-level variables for home page meta tags
    - Comprehensive test suite
@@ -27,10 +27,10 @@ Meta Maximus is a Shopify app for dynamic SEO meta tag management. It allows sto
    - Store data endpoint for variable resolution
 
 3. **Database Integration**
-   - MongoDB support for template storage
+   - In-memory storage for development (mock implementation)
+   - MongoDB ready interface with full CRUD operations
    - Database schema for global templates, custom templates, and scheduled changes
    - Added home page template storage
-   - Fallback to in-memory storage when database is unavailable
 
 4. **Scheduler Service**
    - Background job processing for scheduled meta tag changes
@@ -46,6 +46,7 @@ Meta Maximus is a Shopify app for dynamic SEO meta tag management. It allows sto
    - VariablePreview for real-time previews
    - SEO length validation with visual indicators
    - Improved Google Search Preview positioning
+   - Badge-style variable buttons for quick insertion
 
 2. **Dashboard Pages**
    - Home Page Settings with global templates management
@@ -70,7 +71,7 @@ Meta Maximus is a Shopify app for dynamic SEO meta tag management. It allows sto
 ## Integration with Shopify
 
 1. **Authentication**
-   - OAuth 2.0 flow implementation
+   - OAuth 2.0 flow implementation (currently mocked)
    - Session management
    - Access token storage
 
@@ -83,13 +84,15 @@ Meta Maximus is a Shopify app for dynamic SEO meta tag management. It allows sto
 
 1. **Environment Configuration**
    - Environment variables for API keys, scopes, and port settings
-   - Fixed port configuration to properly respect env variables
-   - Development vs. production settings
+   - Fixed port configuration to consistently use port 3001 from environment variables
+   - Centralized configuration with src/config.js for consistent port usage
+   - Development vs. production settings with appropriate flags
 
 2. **Local Testing**
    - Server runs on port 3001 by default
    - In-memory storage for development
    - Simple test script for API verification
+   - Server restart script for proper environment setup
 
 ## User Experience Improvements
 
@@ -115,38 +118,89 @@ Meta Maximus is a Shopify app for dynamic SEO meta tag management. It allows sto
 1. **User Interface Reorganization**
    - Redesigned all pages to follow a consistent layout:
      - Global settings at the top
-     - Table of excluded items
-     - Scheduling section
+     - Custom rules section replacing excluded items tables
+     - Scheduled global template changes section
      - Variable reference at the bottom
-   - Added excluded items tables to all settings pages
-   - Unified the UI experience across all settings pages
+   - Unified the UI experience across all settings pages with consistent styling
+   - Standardized Google Search Preview styling across all pages with consistent border, padding, and background
 
-2. **Exclusion Management**
-   - Added tables for excluded items on all settings pages
-   - Implemented management controls (edit, remove)
-   - Created consistent workflow for excluding items from global settings
+2. **Variable System Enhancements**
+   - Added badge-style variable buttons for easy insertion
+   - Implemented new DEFAULT variable for inserting Shopify defaults
+   - Added INITIAL CAPS format modifier for title case
+   - Organized variables into logical categories
+   - Created a comprehensive test page to demonstrate all variables
 
-3. **Scheduling Interface**
+3. **Scheduling Enhancements**
    - Added consistent scheduling interfaces on all pages
-   - Enhanced modal for scheduling changes with date controls
-   - Improved explanatory text about scheduling benefits
+   - Enhanced scheduling with override options for global settings and custom rules
+   - Improved date controls with start/end date selection
+   - Added ability to create rules that run indefinitely when no end date specified
+   - Made scheduling interface more intuitive with consistent design
+   - Redesigned scheduled changes display using tabular format
+   - Added status indicators (Active, Scheduled, Paused) with color-coded badges
+
+4. **Status Management & User Controls**
+   - Implemented pause/resume functionality for scheduled changes
+   - Added pause/resume buttons to custom rules
+   - Standardized status badges across all tables (green for Active, blue for Scheduled, yellow for Paused)
+   - Added enhanced user controls for managing schedule status
+   - Improved schedule naming and organization with dedicated name field
 
 ## Next Steps
 
-1. **React Integration**
-   - Replace static HTML UIs with React components
-   - Implement proper routing with Remix
+1. **MongoDB Implementation**
+   - Replace in-memory storage with actual MongoDB
+   - Create database connection pooling
+   - Implement indexes for performance
+   - Setup data validation
+   - Add error handling and retry logic
 
 2. **Enhanced Features**
    - Connect to actual Shopify store data
    - Complete scheduling implementation
    - Add bulk editing interface
    - Improved error handling
+   - User preferences storage
 
 3. **Production Readiness**
    - Complete Shopify app requirements
    - Billing integration
-   - User documentation
-   - MongoDB integration for production
+   - User documentation 
+   - Performance optimization
 
-_Last updated: May 7, 2025_
+## Testing Plan
+
+1. **Unit Testing Priorities**
+   - VariableParser.js - Ensure all variables, conditionals, and modifiers work properly
+   - database.js - Test MongoDB connection and CRUD operations
+   - scheduler.js - Verify scheduled changes are applied correctly
+
+2. **Integration Testing**
+   - Authentication flow with Shopify
+   - Template preview and variable resolution across different contexts
+   - Scheduler triggering and applying template changes
+   - Custom rules and exclusions logic
+
+3. **UI Testing**
+   - Variable buttons functioning correctly
+   - Format modifiers applying properly in all contexts
+   - Preview updates reflecting changes in real-time
+   - Responsive design on different screen sizes
+
+4. **Performance Testing**
+   - Database query optimization
+   - Template parsing with complex variables and conditionals
+   - Handling large numbers of scheduled changes
+
+5. **Error Handling**
+   - Graceful degradation when Shopify API is unavailable
+   - Proper error messages for invalid templates
+   - Recovery from database connection issues
+
+6. **Security Testing**
+   - Input validation and sanitization
+   - Authentication token storage and verification
+   - Rate limiting for API endpoints
+
+_Last updated: May 15, 2025_
