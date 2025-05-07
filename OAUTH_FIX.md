@@ -9,7 +9,7 @@
 
 2. Updated the HOST environment variable to match the Heroku app URL:
    ```
-   HOST=meta-maximus-20c92a32d730.herokuapp.com
+   HOST=meta-maximus.herokuapp.com
    ```
 
 3. Set NODE_ENV to production:
@@ -21,12 +21,12 @@
 
 To fix the OAuth "invalid_scope" error, you need to update the environment variables on Heroku:
 
-1. Go to the Heroku dashboard for your app: https://dashboard.heroku.com/apps/meta-maximus-20c92a32d730
+1. Go to the Heroku dashboard for your app: https://dashboard.heroku.com/apps/meta-maximus
 2. Navigate to the "Settings" tab
 3. Click on "Reveal Config Vars"
 4. Update the following environment variables:
    - `SCOPES`: write_products,write_content,read_products,read_content,write_metafields,read_metafields
-   - `HOST`: meta-maximus-20c92a32d730.herokuapp.com
+   - `HOST`: meta-maximus.herokuapp.com
    - `NODE_ENV`: production
 
 ## Required Changes in Shopify Partner Dashboard
@@ -38,11 +38,11 @@ You also need to ensure your app's configuration in the Shopify Partner Dashboar
 3. Go to "App Setup" > "Configuration"
 4. Under "App URL", ensure it's set to:
    ```
-   https://meta-maximus-20c92a32d730.herokuapp.com
+   https://meta-maximus.herokuapp.com
    ```
 5. Under "Allowed redirection URL(s)", ensure it includes:
    ```
-   https://meta-maximus-20c92a32d730.herokuapp.com/auth/callback
+   https://meta-maximus.herokuapp.com/auth/callback
    ```
 6. Check the "API scopes" section to ensure all these scopes are requested:
    - write_products
@@ -68,7 +68,7 @@ git push heroku main
 
 Test the OAuth flow by visiting:
 ```
-https://meta-maximus-20c92a32d730.herokuapp.com/auth?shop=metamaximus.myshopify.com
+https://meta-maximus.herokuapp.com/auth?shop=metamaximus.myshopify.com
 ```
 
 This should now complete the OAuth flow without the "invalid_scope" error.
@@ -81,6 +81,6 @@ If you still encounter scope errors:
 2. Verify that all scopes are allowed for your Shopify Partner account level
 3. Check the Shopify app logs for detailed error messages:
    ```
-   heroku logs --tail --app meta-maximus-20c92a32d730
+   heroku logs --tail --app meta-maximus
    ```
 4. Consider temporarily removing the `write_metafields` scope and then adding it back after a successful authentication
