@@ -1,0 +1,9 @@
+This file forces a Heroku rebuild.
+Timestamp: 2025-05-07T14:55:12Z
+
+The app is configured with:
+- HOST: meta-maximus-20c92a32d730.herokuapp.com
+- SCOPES: write_products,read_products,read_content,write_content
+- NODE_ENV: production
+
+Currently using basic-server.js for debugging.
