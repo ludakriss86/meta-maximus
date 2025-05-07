@@ -151,6 +151,7 @@ app.get('/auth', async (req, res) => {
     console.log('Shopify API config scopes:', shopify.config.scopes);
     
     // Begin OAuth flow and redirect to Shopify
+    // The shopify.auth.begin method may handle the response itself
     const authUrl = await shopify.auth.begin({
       shop,
       callbackPath: '/auth/callback',
@@ -160,30 +161,40 @@ app.get('/auth', async (req, res) => {
     });
     
     console.log(`Generated auth URL: ${authUrl}`);
-    res.redirect(authUrl);
+    
+    // Only redirect if headers haven't been sent yet
+    if (authUrl && !res.headersSent) {
+      res.redirect(authUrl);
+    }
   } catch (error) {
     console.error('Error starting OAuth process:', error);
     console.error('Error details:', error.stack);
-    res.status(500).send(`
-      <html>
-        <head>
-          <title>Auth Error</title>
-          <style>
-            body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.5; max-width: 800px; margin: 0 auto; }
-            h1 { color: #bf0711; }
-            pre { background: #f4f6f8; padding: 15px; border-radius: 4px; overflow: auto; }
-            .back { display: inline-block; margin-top: 20px; color: #5c6ac4; text-decoration: none; }
-          </style>
-        </head>
-        <body>
-          <h1>Authentication Error</h1>
-          <p>There was a problem starting the authentication process:</p>
-          <pre>${error.message}</pre>
-          <p>Please check your environment variables and Shopify app configuration.</p>
-          <a href="/" class="back">← Back to Home</a>
-        </body>
-      </html>
-    `);
+    
+    // Only send an error response if headers haven't been sent
+    if (!res.headersSent) {
+      res.status(500).send(`
+        <html>
+          <head>
+            <title>Auth Error</title>
+            <style>
+              body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.5; max-width: 800px; margin: 0 auto; }
+              h1 { color: #bf0711; }
+              pre { background: #f4f6f8; padding: 15px; border-radius: 4px; overflow: auto; }
+              .back { display: inline-block; margin-top: 20px; color: #5c6ac4; text-decoration: none; }
+            </style>
+          </head>
+          <body>
+            <h1>Authentication Error</h1>
+            <p>There was a problem starting the authentication process:</p>
+            <pre>${error.message}</pre>
+            <p>Please check your environment variables and Shopify app configuration.</p>
+            <a href="/" class="back">← Back to Home</a>
+          </body>
+        </html>
+      `);
+    } else {
+      console.warn('Headers already sent, could not send error page to client');
+    }
   }
 });
 
