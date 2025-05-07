@@ -21,7 +21,10 @@ const DEFAULT_LOG_LEVEL = process.env.LOG_LEVEL
   ? LOG_LEVELS[process.env.LOG_LEVEL.toUpperCase()] || LOG_LEVELS.INFO
   : LOG_LEVELS.INFO;
 
-// Log file paths
+// Determine if we're running on Heroku
+const isHeroku = process.env.DYNO ? true : false;
+
+// Log file paths - only used when not on Heroku
 const LOG_DIR = path.join(process.cwd(), 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'app.log');
 const ERROR_LOG_FILE = path.join(LOG_DIR, 'error.log');
@@ -44,12 +47,16 @@ const metrics = {
  * Initialize the logger
  */
 function initialize() {
-  // Create log directory if it doesn't exist
-  if (!fs.existsSync(LOG_DIR)) {
-    try {
-      fs.mkdirSync(LOG_DIR, { recursive: true });
-    } catch (error) {
-      console.error('Failed to create log directory:', error);
+  // On Heroku, we don't need to create log directories
+  // as we'll be logging to stdout/stderr
+  if (!isHeroku) {
+    // Create log directory if it doesn't exist
+    if (!fs.existsSync(LOG_DIR)) {
+      try {
+        fs.mkdirSync(LOG_DIR, { recursive: true });
+      } catch (error) {
+        console.error('Failed to create log directory:', error);
+      }
     }
   }
 }
@@ -78,6 +85,11 @@ function formatLog(level, message, meta = {}) {
  * @param {string} message - Log message
  */
 function writeToFile(filePath, message) {
+  // Skip file writing on Heroku
+  if (isHeroku) {
+    return;
+  }
+  
   try {
     fs.appendFileSync(filePath, message + EOL);
   } catch (error) {
