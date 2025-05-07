@@ -214,10 +214,18 @@ app.get('/auth/callback', async (req, res) => {
     // Complete OAuth process with enhanced logging
     console.log('Completing OAuth process...');
     try {
+      // The Shopify auth.callback() method may handle the response automatically
+      // We'll check if the response is already finished after the call
       const session = await shopify.auth.callback({
         rawRequest: req,
         rawResponse: res,
       });
+      
+      // If Shopify has already sent a response, we should exit early
+      if (res.headersSent) {
+        console.log('Headers already sent by Shopify auth callback, skipping further processing');
+        return;
+      }
       
       if (!session || !session.shop) {
         throw new Error('Invalid session returned from Shopify OAuth callback');
@@ -251,16 +259,19 @@ app.get('/auth/callback', async (req, res) => {
         console.log(`Memory session storage contains ${SESSION_STORAGE.size} sessions`);
       }
       
-      // Clean up nonce with secure settings
-      res.clearCookie('shopify_nonce', {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        sameSite: 'lax'
-      });
-      
-      // Redirect to app home with success message
-      console.log('OAuth flow completed successfully, redirecting to app home');
-      res.redirect('/?auth=success');
+      // If we get here and the response hasn't been sent yet, we can send our own response
+      if (!res.headersSent) {
+        // Clean up nonce with secure settings
+        res.clearCookie('shopify_nonce', {
+          secure: process.env.NODE_ENV === 'production',
+          httpOnly: true,
+          sameSite: 'lax'
+        });
+        
+        // Redirect to app home with success message
+        console.log('OAuth flow completed successfully, redirecting to app home');
+        res.redirect('/?auth=success');
+      }
     } catch (innerError) {
       console.error('Error during OAuth callback processing:', innerError);
       console.error('Inner error details:', innerError.stack);
@@ -270,27 +281,32 @@ app.get('/auth/callback', async (req, res) => {
     console.error('Error during auth callback:', error);
     console.error('Error details:', error.stack);
     
-    // Provide a more user-friendly error page
-    res.status(500).send(`
-      <html>
-        <head>
-          <title>Authentication Error</title>
-          <style>
-            body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.5; max-width: 800px; margin: 0 auto; }
-            h1 { color: #bf0711; }
-            pre { background: #f4f6f8; padding: 15px; border-radius: 4px; overflow: auto; }
-            .back { display: inline-block; margin-top: 20px; color: #5c6ac4; text-decoration: none; }
-          </style>
-        </head>
-        <body>
-          <h1>Authentication Error</h1>
-          <p>There was a problem authenticating with Shopify:</p>
-          <pre>${error.message}</pre>
-          <p>Please try again or contact support if the issue persists.</p>
-          <a href="/" class="back">← Back to Home</a>
-        </body>
-      </html>
-    `);
+    // Check if headers have already been sent
+    if (!res.headersSent) {
+      // Provide a more user-friendly error page
+      res.status(500).send(`
+        <html>
+          <head>
+            <title>Authentication Error</title>
+            <style>
+              body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.5; max-width: 800px; margin: 0 auto; }
+              h1 { color: #bf0711; }
+              pre { background: #f4f6f8; padding: 15px; border-radius: 4px; overflow: auto; }
+              .back { display: inline-block; margin-top: 20px; color: #5c6ac4; text-decoration: none; }
+            </style>
+          </head>
+          <body>
+            <h1>Authentication Error</h1>
+            <p>There was a problem authenticating with Shopify:</p>
+            <pre>${error.message}</pre>
+            <p>Please try again or contact support if the issue persists.</p>
+            <a href="/" class="back">← Back to Home</a>
+          </body>
+        </html>
+      `);
+    } else {
+      console.warn('Headers already sent, could not send error page to client');
+    }
   }
 });
 
