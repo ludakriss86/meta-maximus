@@ -21,10 +21,14 @@ console.log(`Initializing Shopify API with:
   - Environment: ${process.env.NODE_ENV}
 `);
 
+// Ensure scopes are properly formatted and trimmed
+const formattedScopes = process.env.SCOPES.split(',').map(scope => scope.trim());
+console.log('Formatted scopes:', formattedScopes);
+
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET,
-  scopes: process.env.SCOPES.split(','),
+  scopes: formattedScopes,
   hostName: process.env.HOST || `localhost:${port}`,
   hostScheme: 'https',
   apiVersion: LATEST_API_VERSION,
@@ -92,6 +96,18 @@ app.get('/auth', async (req, res) => {
   res.cookie('shopify_nonce', nonce, { signed: true });
   
   try {
+    // Log auth details for debugging
+    console.log('Auth configuration:', {
+      apiKey: process.env.SHOPIFY_API_KEY ? process.env.SHOPIFY_API_KEY.substring(0, 4) + '...' : 'missing',
+      hasSecret: !!process.env.SHOPIFY_API_SECRET,
+      scopes: formattedScopes,
+      host: process.env.HOST,
+      shop: shop
+    });
+    
+    // Verify scopes are actually being passed to the auth.begin method
+    console.log('Shopify API config scopes:', shopify.config.scopes);
+    
     // Redirect to Shopify for auth
     const authUrl = await shopify.auth.begin({
       shop,
@@ -105,7 +121,27 @@ app.get('/auth', async (req, res) => {
     res.redirect(authUrl);
   } catch (error) {
     console.error('Error starting OAuth process:', error);
-    res.status(500).send(`Auth error: ${error.message}`);
+    console.error('Error details:', error.stack);
+    res.status(500).send(`
+      <html>
+        <head>
+          <title>Auth Error</title>
+          <style>
+            body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.5; max-width: 800px; margin: 0 auto; }
+            h1 { color: #bf0711; }
+            pre { background: #f4f6f8; padding: 15px; border-radius: 4px; overflow: auto; }
+            .back { display: inline-block; margin-top: 20px; color: #5c6ac4; text-decoration: none; }
+          </style>
+        </head>
+        <body>
+          <h1>Authentication Error</h1>
+          <p>There was a problem starting the authentication process:</p>
+          <pre>${error.message}</pre>
+          <p>Please check your environment variables and Shopify app configuration.</p>
+          <a href="/" class="back">← Back to Home</a>
+        </body>
+      </html>
+    `);
   }
 });
 
