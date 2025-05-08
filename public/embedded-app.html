@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meta Maximus SEO</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f6f6f7;
+      color: #212b36;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      padding: 20px;
+    }
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-right: 10px;
+    }
+    .tab.active {
+      border-bottom: 2px solid #5c6ac4;
+      color: #5c6ac4;
+      font-weight: 500;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    button {
+      background: #5c6ac4;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #4959bd;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 18px;
+      border-bottom: 1px solid #f0f0f0;
+      padding-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Meta Maximus SEO</h1>
+    
+    <div class="tabs">
+      <div class="tab active" data-tab="homepage">Homepage</div>
+      <div class="tab" data-tab="collections">Collections</div>
+      <div class="tab" data-tab="products">Products</div>
+      <div class="tab" data-tab="settings">Settings</div>
+    </div>
+    
+    <div class="tab-content active" id="homepage">
+      <div class="card">
+        <h3>Homepage SEO Settings</h3>
+        
+        <div class="form-group">
+          <label for="homepage-title">Meta Title</label>
+          <input type="text" id="homepage-title" placeholder="{{store_name}} - {{tagline}}">
+          <small>Use variables like {{store_name}}, {{tagline}}, {{season}}, etc.</small>
+        </div>
+        
+        <div class="form-group">
+          <label for="homepage-description">Meta Description</label>
+          <textarea id="homepage-description" rows="3" placeholder="Shop the latest {{season}} collection at {{store_name}}. {{tagline}}"></textarea>
+        </div>
+        
+        <button>Save Homepage Settings</button>
+      </div>
+    </div>
+    
+    <div class="tab-content" id="collections">
+      <div class="card">
+        <h3>Collection SEO Template</h3>
+        
+        <div class="form-group">
+          <label for="collection-title">Meta Title Template</label>
+          <input type="text" id="collection-title" placeholder="{{collection_name}} - {{store_name}}">
+        </div>
+        
+        <div class="form-group">
+          <label for="collection-description">Meta Description Template</label>
+          <textarea id="collection-description" rows="3" placeholder="Shop our {{collection_name}} collection. {{collection_description}}"></textarea>
+        </div>
+        
+        <button>Save Collection Template</button>
+      </div>
+    </div>
+    
+    <div class="tab-content" id="products">
+      <div class="card">
+        <h3>Product SEO Template</h3>
+        
+        <div class="form-group">
+          <label for="product-title">Meta Title Template</label>
+          <input type="text" id="product-title" placeholder="{{product_name}} - {{store_name}}">
+        </div>
+        
+        <div class="form-group">
+          <label for="product-description">Meta Description Template</label>
+          <textarea id="product-description" rows="3" placeholder="{{product_name}}: {{product_description}}"></textarea>
+        </div>
+        
+        <button>Save Product Template</button>
+      </div>
+    </div>
+    
+    <div class="tab-content" id="settings">
+      <div class="card">
+        <h3>Application Settings</h3>
+        
+        <div class="form-group">
+          <label for="store-name">Store Name</label>
+          <input type="text" id="store-name" placeholder="Your Store Name">
+        </div>
+        
+        <div class="form-group">
+          <label for="store-tagline">Store Tagline</label>
+          <input type="text" id="store-tagline" placeholder="Your store's tagline or slogan">
+        </div>
+        
+        <button>Save Settings</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Simple tab functionality
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Remove active class from all tabs and contents
+        document.querySelectorAll('.tab, .tab-content').forEach(el => {
+          el.classList.remove('active');
+        });
+        
+        // Add active class to clicked tab
+        tab.classList.add('active');
+        
+        // Show corresponding content
+        const tabName = tab.getAttribute('data-tab');
+        document.getElementById(tabName).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

@@ -4,6 +4,7 @@ require('@shopify/shopify-api/adapters/node');
 const express = require('express');
 const { shopifyApi, ApiVersion, LATEST_API_VERSION } = require('@shopify/shopify-api');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const config = require('../src/config');
@@ -4706,9 +4707,13 @@ app.get('/', (req, res) => {
     
     // 3b. We have a valid session and host parameter - we're in the Shopify Admin!
     
+    // Use our embedded app UI instead of the dashboard HTML
+    // First, read the embedded app HTML file
+    const embeddedAppHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'embedded-app.html'), 'utf8');
+    
     // Add App Bridge script tag and initialization to the HTML
     // This is critical for embedded apps to communicate with Shopify admin
-    const embeddedAppHtml = dashboardHTML.replace('</head>', `
+    const modifiedAppHtml = embeddedAppHtml.replace('</head>', `
       <!-- Shopify App Bridge -->
       <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
       <script src="https://unpkg.com/@shopify/app-bridge-utils@3"></script>
@@ -4805,15 +4810,17 @@ app.get('/', (req, res) => {
       </head>
     `);
     
-    res.send(embeddedAppHtml);
+    res.send(modifiedAppHtml);
   } else {
     // Direct access (no host parameter)
     if (!req.shopifySession) {
       console.log('DIRECT ACCESS - No session, showing welcome page');
-      res.send(dashboardHTML);
+      // For direct access without a session, show a simple branding page without install buttons
+      res.sendFile(path.join(__dirname, '..', 'public', 'landing-page.html'));
     } else {
-      console.log('DIRECT ACCESS - With session, showing dashboard');
-      res.send(dashboardHTML);
+      console.log('DIRECT ACCESS - With session, showing app interface');
+      // For direct access with a session, show the app interface
+      res.sendFile(path.join(__dirname, '..', 'public', 'embedded-app.html'));
     }
   }
 });
