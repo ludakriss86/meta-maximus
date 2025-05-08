@@ -4741,7 +4741,7 @@ app.get('/', (req, res) => {
           // Set up title bar
           var TitleBar = actions.TitleBar;
           var titleBarOptions = {
-            title: 'Meta Maximus',
+            title: 'Meta Maximus SEO',
           };
           var myTitleBar = TitleBar.create(app, titleBarOptions);
           
