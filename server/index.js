@@ -421,12 +421,7 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-// Installation page - easy access to start the auth process
-app.get('/install', (req, res) => {
-  console.log('Serving installation page');
-  // Serve the installation HTML file
-  res.sendFile(path.join(__dirname, '..', 'public', 'install.html'));
-});
+// Shopify apps don't need a separate installation page - the Shopify Partners dashboard or App Store handles this
 
 // Status route to check server and configuration status
 app.get('/status', (req, res) => {
@@ -4610,10 +4605,12 @@ const authMiddleware = async (req, res, next) => {
     return next();
   }
   
-  // If no shop is provided on a direct access, redirect to install page
+  // If no shop is provided on a direct access, show an error or the homepage
   if (!shop) {
-    console.log('No shop provided, redirecting to install page');
-    return res.redirect('/install');
+    console.log('No shop provided, showing homepage');
+    // In a proper Shopify app, direct access without a shop parameter is rare
+    // Just showing the homepage is fine for this scenario
+    return res.send(dashboardHTML);
   }
   
   // At this point, we have a shop and it's a direct access (not embedded)
@@ -4680,14 +4677,14 @@ app.get('/', (req, res) => {
   
   // IMPORTANT LOGIC FOR SHOPIFY APP INTEGRATION:
   
-  // 1. Handle direct (non-embedded) visits WITHOUT shop parameter - serve the app landing page
+  // 1. Handle direct (non-embedded) visits WITHOUT shop parameter
   if (!shop && !host) {
     // This is direct access to the app URL without shop or host parameters
-    // For first-time users, show the landing page with installation instructions
-    console.log('DIRECT ACCESS: Serving landing page');
+    // We should show a simple brand page or redirect to the Shopify app listing
+    console.log('DIRECT ACCESS: Serving brand page');
     
-    // Redirecting to /install is more straightforward than serving the homepage
-    return res.redirect('/install');
+    // Just serve a simple homepage with app info
+    return res.send(dashboardHTML);
   }
   
   // 2. Handle direct access WITH shop parameter but NO session
