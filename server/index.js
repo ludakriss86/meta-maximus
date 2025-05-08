@@ -4678,22 +4678,36 @@ app.get('/', (req, res) => {
   }
   console.log('=================================================\n');
   
-  // Special handling for first-time installation
-  // If we have a shop parameter but no session, start OAuth
-  if (shop && !req.shopifySession) {
+  // IMPORTANT LOGIC FOR SHOPIFY APP INTEGRATION:
+  
+  // 1. Handle direct (non-embedded) visits WITHOUT shop parameter - serve the app landing page
+  if (!shop && !host) {
+    // This is direct access to the app URL without shop or host parameters
+    // For first-time users, show the landing page with installation instructions
+    console.log('DIRECT ACCESS: Serving landing page');
+    
+    // Redirecting to /install is more straightforward than serving the homepage
+    return res.redirect('/install');
+  }
+  
+  // 2. Handle direct access WITH shop parameter but NO session
+  // This is likely direct access during installation process or an expired session
+  if (shop && !host && !req.shopifySession) {
     console.log(`INSTALLATION FLOW DETECTED - Redirecting to auth for shop: ${shop}`);
     return res.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
   }
   
-  // Embedded app from Shopify Admin (has host parameter)
+  // 3. Handle embedded app context (from Shopify admin)
   if (host) {
     console.log(`EMBEDDED APP MODE - Serving app for shop: ${shop}, host: ${host}`);
     
-    // Ensure the app is properly installed by checking for a session
+    // 3a. If no session in embedded mode, start auth flow
     if (shop && !req.shopifySession) {
       console.log(`No session found for embedded app. Initiating auth flow for: ${shop}`);
       return res.redirect(`/auth?shop=${encodeURIComponent(shop)}&host=${encodeURIComponent(host)}`);
     }
+    
+    // 3b. We have a valid session and host parameter - we're in the Shopify Admin!
     
     // Add App Bridge script tag and initialization to the HTML
     // This is critical for embedded apps to communicate with Shopify admin
